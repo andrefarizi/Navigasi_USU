@@ -1,19 +1,14 @@
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\AdminMainFrame.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\FacilityDAO.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\TestLogin.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\utils\GoogleMapsHelper.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\RoomDAO.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\PETA_USU.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\models\Road.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\utamaadmin.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\UserMapFrame.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\middleware\AuthMiddleware.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\models\Facility.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\RoadClosureDAO.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\RoadClosurePanel.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\UserDAO.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\RoadDAO.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\profilUser.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\models\Room.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\AdminMapPanel.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\services\PathfindingService.java
@@ -24,7 +19,6 @@ C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\myco
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\MarkerDAO.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\BuildingManagementPanel.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\utils\MapRefreshUtil.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\FacilityManagementPanel.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\RoomManagementPanel.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\models\User.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\dao\BuildingDAO.java
@@ -34,7 +28,5 @@ C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\myco
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\ui\BuildingInfoDialog.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\MapFrame.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\LoginFrame.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\LoginFrameSimple.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\models\Marker.java
-C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\utils\DatabaseDebugger.java
 C:\Users\ZEPHYRUS G14\Documents\NetBeansProjects\PETA_USU\src\main\java\com\mycompany\peta_usu\utils\IconUploadManager.java
