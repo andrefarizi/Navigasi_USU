@@ -145,64 +145,8 @@ CREATE TABLE road_closures (
     INDEX idx_dates (start_date, end_date)
 );
 
--- Tabel Facilities (Fasilitas tambahan)
-CREATE TABLE facilities (
-    facility_id INT PRIMARY KEY AUTO_INCREMENT,
-    building_id INT,
-    facility_name VARCHAR(100) NOT NULL,
-    facility_type VARCHAR(50),
-    description TEXT,
-    is_available BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (building_id) REFERENCES buildings(building_id) ON DELETE CASCADE,
-    INDEX idx_building (building_id)
-);
-
--- Tabel Icon Uploads (Menyimpan metadata icon yang diupload)
-CREATE TABLE icon_uploads (
-    icon_id INT PRIMARY KEY AUTO_INCREMENT,
-    original_filename VARCHAR(255) NOT NULL,
-    saved_filename VARCHAR(255) NOT NULL,
-    file_path VARCHAR(500) NOT NULL,
-    file_size INT,
-    mime_type VARCHAR(100),
-    uploaded_by INT,
-    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (uploaded_by) REFERENCES users(user_id) ON DELETE SET NULL
-);
-
 -- ============================================
--- 4. CREATE VIEWS
--- ============================================
-
--- View untuk buildings dengan jumlah ruangan
-CREATE VIEW v_buildings_summary AS
-SELECT 
-    b.building_id,
-    b.building_code,
-    b.building_name,
-    b.building_type,
-    b.latitude,
-    b.longitude,
-    COUNT(r.room_id) as total_rooms,
-    b.is_active
-FROM buildings b
-LEFT JOIN rooms r ON b.building_id = r.building_id
-GROUP BY b.building_id;
-
--- View untuk road closures yang aktif
-CREATE VIEW v_active_closures AS
-SELECT 
-    rc.*,
-    r.road_name,
-    u.name as created_by_name
-FROM road_closures rc
-JOIN roads r ON rc.road_id = r.road_id
-LEFT JOIN users u ON rc.created_by = u.user_id
-WHERE rc.is_active = TRUE;
-
--- ============================================
--- 5. INSERT DEFAULT DATA
+-- 4. INSERT DEFAULT DATA
 -- ============================================
 
 -- Insert default admin user (password: admin123)
@@ -211,7 +155,7 @@ INSERT INTO users (nim, password, name, email, role) VALUES
 ('2205181001', 'user123', 'User Example', 'user@usu.ac.id', 'user');
 
 -- ============================================
--- 6. INSERT COMPLETE USU DATA
+-- 5. INSERT COMPLETE USU DATA
 -- ============================================
 
 -- Insert Buildings (Gedung-gedung di USU)
@@ -275,7 +219,7 @@ INSERT INTO rooms (building_id, room_code, room_name, floor_number, room_type, c
 (4, 'FT-301', 'Ruang Seminar', 3, 'auditorium', 100);
 
 -- ============================================
--- 7. VERIFICATION QUERIES
+-- 6. VERIFICATION QUERIES
 -- ============================================
 
 SELECT 'Buildings' AS Tabel, COUNT(*) AS 'Total Data' FROM buildings
@@ -289,8 +233,8 @@ UNION ALL
 SELECT 'Users', COUNT(*) FROM users;
 
 -- ============================================
--- 8. SUCCESS MESSAGE
+-- 7. SUCCESS MESSAGE
 -- ============================================
 
 SELECT '✅ Database navigasi_usu berhasil dibuat dan diisi dengan data lengkap!' AS Status;
-SELECT 'Total Buildings: 10, Markers: 5, Roads: 21, Rooms: 7, Users: 2' AS Summary;
+SELECT 'Tabel aktif: users, buildings, rooms, markers, roads, road_closures' AS Info;
