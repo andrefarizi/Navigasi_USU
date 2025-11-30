@@ -76,6 +76,30 @@ public class RoomDAO {
     }
     
     /**
+     * Get all rooms
+     */
+    public List<Room> getAllRooms() {
+        List<Room> rooms = new ArrayList<>();
+        String sql = "SELECT r.*, b.building_name " +
+                    "FROM rooms r " +
+                    "JOIN buildings b ON r.building_id = b.building_id " +
+                    "ORDER BY b.building_name, r.floor_number, r.room_code";
+        
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                rooms.add(mapResultSetToRoom(rs));
+            }
+            
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting all rooms", e);
+        }
+        
+        return rooms;
+    }
+    
+    /**
      * Get room by code
      */
     public Room getRoomByCode(String roomCode) {

@@ -190,15 +190,14 @@ public class PathfindingService {
                 road.getEndLat(), road.getEndLng()
             );
             
-            // Add edges based on road type
-            if ("MAIN_ROAD".equals(road.getRoadType()) || 
-                "TWO_WAY".equals(road.getRoadType())) {
-                // Two way road
-                graph.get(startNode).add(new Edge(endNode, distance, road));
-                graph.get(endNode).add(new Edge(startNode, distance, road));
-            } else if ("ONE_WAY".equals(road.getRoadType())) {
+            // Add edges based on is_one_way flag
+            if (road.isOneWay()) {
                 // One way road (start -> end only)
                 graph.get(startNode).add(new Edge(endNode, distance, road));
+            } else {
+                // Two way road (bidirectional)
+                graph.get(startNode).add(new Edge(endNode, distance, road));
+                graph.get(endNode).add(new Edge(startNode, distance, road));
             }
         }
         

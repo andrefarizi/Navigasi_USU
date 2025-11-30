@@ -20,10 +20,9 @@ public class Road {
     private Timestamp updatedAt;
     
     public enum RoadType {
-        MAIN_ROAD("main_road", "Jalan Utama"),
-        PEDESTRIAN("pedestrian", "Jalan Pejalan Kaki"),
-        PARKING("parking", "Area Parkir"),
-        BIKE_LANE("bike_lane", "Jalur Sepeda");
+        MAIN("main", "Jalan Utama"),
+        SECONDARY("secondary", "Jalan Sekunder"),
+        PEDESTRIAN("pedestrian", "Jalan Pejalan Kaki");
         
         private final String value;
         private final String displayName;
@@ -37,12 +36,13 @@ public class Road {
         public String getDisplayName() { return displayName; }
         
         public static RoadType fromString(String text) {
+            if (text == null) return MAIN;
             for (RoadType rt : RoadType.values()) {
                 if (rt.value.equalsIgnoreCase(text)) {
                     return rt;
                 }
             }
-            return MAIN_ROAD;
+            return MAIN;
         }
     }
     

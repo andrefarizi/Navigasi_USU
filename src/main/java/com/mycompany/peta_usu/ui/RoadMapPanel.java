@@ -300,16 +300,15 @@ public class RoadMapPanel extends JPanel {
                         }
                     }
                     
-                    // Determine stroke based on road type
+                    // Determine stroke based on is_one_way flag
                     BasicStroke stroke;
-                    if ("ONE_WAY".equals(road.getRoadType())) {
+                    if (road.isOneWay()) {
+                        // One way road - dashed blue line
                         roadColor = new Color(0, 100, 200); // Blue
                         stroke = new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, 
                             BasicStroke.JOIN_ROUND, 0, new float[]{10, 5}, 0);
-                    } else if ("TWO_WAY".equals(road.getRoadType())) {
-                        roadColor = new Color(0, 150, 0); // Green
-                        stroke = new BasicStroke(strokeWidth);
                     } else {
+                        // Two way road - solid line
                         stroke = new BasicStroke(strokeWidth);
                     }
                     
@@ -332,10 +331,10 @@ public class RoadMapPanel extends JPanel {
                     g.drawLine(x1, y1, x2, y2);
                     
                     // Draw arrow untuk one-way roads
-                    if ("ONE_WAY".equals(road.getRoadType())) {
+                    if (road.isOneWay()) {
                         drawArrow(g, x1, y1, x2, y2, roadColor);
-                    } else if ("TWO_WAY".equals(road.getRoadType())) {
-                        // Draw double arrow
+                    } else {
+                        // Draw double arrow for two-way roads
                         drawArrow(g, x1, y1, x2, y2, roadColor);
                         drawArrow(g, x2, y2, x1, y1, roadColor);
                     }

@@ -128,6 +128,12 @@ public class MapFrame extends javax.swing.JFrame {
                 );
                 waypoints.add(wp);
             }
+            
+            // Update combo boxes after buildings loaded
+            SwingUtilities.invokeLater(() -> {
+                updateLocationComboBoxes();
+            });
+            
         } catch (Exception e) {
             logger.warning("Failed to load buildings: " + e.getMessage());
             e.printStackTrace();
