@@ -1,0 +1,175 @@
+package com.mycompany.peta_usu.dao;
+
+import com.mycompany.peta_usu.config.DatabaseConnection;
+import com.mycompany.peta_usu.models.Road;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * DAO untuk tabel roads
+ */
+public class RoadDAO {
+    private static final Logger logger = Logger.getLogger(RoadDAO.class.getName());
+    private final Connection connection;
+    
+    public RoadDAO() {
+        this.connection = DatabaseConnection.getInstance().getConnection();
+    }
+    
+    // Create
+    public boolean insertRoad(Road road) {
+        String sql = "INSERT INTO roads (road_name, road_type, start_lat, start_lng, " +
+                    "end_lat, end_lng, is_one_way, distance, description) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setString(1, road.getRoadName());
+            pstmt.setString(2, road.getRoadType().getValue());
+            pstmt.setDouble(3, road.getStartLat());
+            pstmt.setDouble(4, road.getStartLng());
+            pstmt.setDouble(5, road.getEndLat());
+            pstmt.setDouble(6, road.getEndLng());
+            pstmt.setBoolean(7, road.isOneWay());
+            pstmt.setDouble(8, road.getDistance());
+            pstmt.setString(9, road.getDescription());
+            
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        road.setRoadId(rs.getInt(1));
+                    }
+                }
+                logger.info("Road inserted: " + road.getRoadName());
+                return true;
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error inserting road", e);
+        }
+        return false;
+    }
+    
+    // Read All
+    public List<Road> getAllRoads() {
+        List<Road> roads = new ArrayList<>();
+        String sql = "SELECT * FROM roads ORDER BY road_name";
+        
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                roads.add(mapResultSetToRoad(rs));
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting all roads", e);
+        }
+        return roads;
+    }
+    
+    // Read by ID
+    public Road getRoadById(int roadId) {
+        String sql = "SELECT * FROM roads WHERE road_id = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, roadId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return mapResultSetToRoad(rs);
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error getting road by ID", e);
+        }
+        return null;
+    }
+    
+    // Update
+    public boolean updateRoad(Road road) {
+        String sql = "UPDATE roads SET road_name = ?, road_type = ?, start_lat = ?, " +
+                    "start_lng = ?, end_lat = ?, end_lng = ?, is_one_way = ?, " +
+                    "distance = ?, description = ? WHERE road_id = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, road.getRoadName());
+            pstmt.setString(2, road.getRoadType().getValue());
+            pstmt.setDouble(3, road.getStartLat());
+            pstmt.setDouble(4, road.getStartLng());
+            pstmt.setDouble(5, road.getEndLat());
+            pstmt.setDouble(6, road.getEndLng());
+            pstmt.setBoolean(7, road.isOneWay());
+            pstmt.setDouble(8, road.getDistance());
+            pstmt.setString(9, road.getDescription());
+            pstmt.setInt(10, road.getRoadId());
+            
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                logger.info("Road updated: " + road.getRoadName());
+                return true;
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error updating road", e);
+        }
+        return false;
+    }
+    
+    // Delete
+    public boolean deleteRoad(int roadId) {
+        String sql = "DELETE FROM roads WHERE road_id = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, roadId);
+            int affected = pstmt.executeUpdate();
+            
+            if (affected > 0) {
+                logger.info("Road deleted: " + roadId);
+                return true;
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error deleting road", e);
+        }
+        return false;
+    }
+    
+    // Search
+    public List<Road> searchRoads(String keyword) {
+        List<Road> roads = new ArrayList<>();
+        String sql = "SELECT * FROM roads WHERE road_name LIKE ? OR description LIKE ? " +
+                    "ORDER BY road_name";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            String pattern = "%" + keyword + "%";
+            pstmt.setString(1, pattern);
+            pstmt.setString(2, pattern);
+            
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                roads.add(mapResultSetToRoad(rs));
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error searching roads", e);
+        }
+        return roads;
+    }
+    
+    // Helper
+    private Road mapResultSetToRoad(ResultSet rs) throws SQLException {
+        Road road = new Road();
+        road.setRoadId(rs.getInt("road_id"));
+        road.setRoadName(rs.getString("road_name"));
+        road.setRoadType(Road.RoadType.fromString(rs.getString("road_type")));
+        road.setStartLat(rs.getDouble("start_lat"));
+        road.setStartLng(rs.getDouble("start_lng"));
+        road.setEndLat(rs.getDouble("end_lat"));
+        road.setEndLng(rs.getDouble("end_lng"));
+        road.setOneWay(rs.getBoolean("is_one_way"));
+        // distance and description columns don't exist in roads table
+        // road.setDistance(rs.getDouble("distance"));
+        // road.setDescription(rs.getString("description"));
+        road.setCreatedAt(rs.getTimestamp("created_at"));
+        road.setUpdatedAt(rs.getTimestamp("updated_at"));
+        return road;
+    }
+}
