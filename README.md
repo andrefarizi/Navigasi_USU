@@ -1,8 +1,130 @@
 # PetaUSU - Sistem Navigasi Kampus USU
-## Navigation System for Universitas Sumatera Utara
 
-### 📋 Project Overview
-Sistem navigasi berbasis peta interaktif untuk Kampus Universitas Sumatera Utara menggunakan Google Maps API dengan arsitektur Object-Oriented Programming (OOP) lanjutan. Aplikasi ini menyediakan antarmuka terpisah untuk pengguna umum dan administrator, dengan sistem autentikasi berbasis middleware untuk keamanan akses.
+Sistem navigasi berbasis peta interaktif untuk Kampus Universitas Sumatera Utara menggunakan JXMapViewer2 dan Google Maps API dengan arsitektur Object-Oriented Programming (OOP) lanjutan.
+
+## Deskripsi Aplikasi
+
+**PetaUSU** adalah aplikasi desktop berbasis Java Swing yang menyediakan sistem navigasi interaktif untuk kampus Universitas Sumatera Utara. Aplikasi ini memiliki dua mode akses:
+
+### Mode User (Tanpa Login)
+- Melihat peta kampus USU dengan 10 gedung dan 5 marker lokasi penting
+- Mencari gedung berdasarkan nama atau kode
+- Melihat informasi detail gedung (alamat, koordinat, ruangan, fasilitas)
+- Mencari rute dari titik awal ke titik tujuan menggunakan algoritma A*
+- Navigasi interaktif dengan zoom dan pan
+
+### Mode Admin (Dengan Login)
+- Login dengan credentials admin (middleware authentication)
+- Manajemen marker peta (tambah, edit, hapus, upload icon)
+- Manajemen penutupan jalan (temporary, permanent, one-way)
+- Visualisasi jaringan jalan dengan 21 rute
+- Manajemen gedung dan ruangan
+- Dashboard monitoring
+
+## Teknologi yang Digunakan
+
+- **Java 21 LTS** - Bahasa pemrograman
+- **MySQL 8.0** - Database management system
+- **JXMapViewer2 2.6** - Komponen peta interaktif
+- **Google Maps API** - Layanan peta dan geocoding
+- **Maven** - Build automation tool
+- **Swing** - GUI framework
+
+## Fitur Utama
+
+### 1. Peta Interaktif
+- Display 10 gedung kampus USU dengan koordinat real
+- 5 marker lokasi penting (parkir, kantin, taman, halte, ATM)
+- 21 jalur jalan (main roads, secondary roads, connector roads)
+- Zoom, pan, dan klik marker untuk info detail
+
+### 2. Pencarian Rute
+- Algoritma A* untuk pathfinding optimal
+- Pertimbangkan penutupan jalan dan jalan satu arah
+- Display rute di peta dengan garis berwarna
+- Informasi jarak dan estimasi waktu
+
+### 3. Manajemen Data (Admin)
+- CRUD operations untuk buildings, markers, roads
+- Upload custom icons untuk marker (PNG, JPG, SVG)
+- Road closure management dengan date range
+- Filter dan search functionality
+
+### 4. Visualisasi Jalan
+- Garis putus-putus biru = Jalan satu arah (one-way)
+- Garis solid hitam = Jalan dua arah (two-way)
+- Garis merah = Penutupan permanen
+- Garis oranye = Penutupan sementara
+
+## Data Kampus USU
+
+### Gedung (10)
+1. Gedung Rektorat USU
+2. Perpustakaan Universitas
+3. Fakultas MIPA
+4. Fakultas Teknik
+5. Gedung Bioteknologi
+6. Stadium Mini USU
+7. Masjid Al-Makmur USU
+8. Auditorium USU
+9. Politeknik Negeri Medan
+10. Gerbang Utama USU
+
+### Lokasi Penting (5)
+- Parkir Gedung Rektorat
+- Kantin Fakultas MIPA
+- Taman Kampus
+- Halte Bus Kampus
+- ATM Center
+
+### Jaringan Jalan (21)
+- 3 Jalan Utama (main roads)
+- 15 Jalan Sekunder (secondary roads)
+- 3 Jalan Penghubung (connector roads)
+
+## Setup & Instalasi
+
+### 1. Database
+```bash
+mysql -u root -p < database/navigasi.sql
+```
+
+### 2. Konfigurasi
+Edit `DatabaseConnection.java` dan `GoogleMapsHelper.java` untuk credentials.
+
+### 3. Build & Run
+```bash
+mvn clean install
+mvn exec:java -Dexec.mainClass="com.mycompany.peta_usu.PETA_USU"
+```
+
+### Default Credentials
+- Admin: `admin` / `admin123`
+- User: `user` / `user123`
+
+## Arsitektur
+
+### Design Patterns
+- **Singleton**: DatabaseConnection
+- **DAO Pattern**: Data access layer
+- **MVC**: Model-View-Controller
+- **Middleware**: Authentication & authorization
+
+### Struktur Package
+```
+com.mycompany.peta_usu/
+├── config/          # Database connection
+├── models/          # Entity classes (Building, Road, Marker, etc)
+├── dao/             # Data Access Objects
+├── services/        # Business logic (PathfindingService)
+├── middleware/      # AuthMiddleware
+├── utils/           # Helper classes
+└── ui/              # Swing GUI components
+```
+
+## Lisensi
+
+© 2025 PetaUSU Team - Universitas Sumatera Utara
 
 ### ✨ Key Features
 
