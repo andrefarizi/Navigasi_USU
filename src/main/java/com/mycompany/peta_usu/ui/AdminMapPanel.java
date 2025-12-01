@@ -599,34 +599,61 @@ public class AdminMapPanel extends JPanel {
             btnUpdate.setForeground(Color.WHITE);
             btnUpdate.addActionListener(e -> {
                 try {
-                    marker.setMarkerName(txtName.getText().trim());
-                    marker.setMarkerType((String) cboType.getSelectedItem());
-                    marker.setLatitude(Double.parseDouble(txtLat.getText()));
-                    marker.setLongitude(Double.parseDouble(txtLng.getText()));
-                    marker.setDescription(txtDescription.getText().trim());
+                    double lat = Double.parseDouble(txtLat.getText());
+                    double lng = Double.parseDouble(txtLng.getText());
                     
-                    // Validate coordinates
-                    if (!isWithinUSUArea(marker.getLatitude(), marker.getLongitude())) {
+                    // Validate coordinates are within USU area
+                    if (lat < 3.55 || lat > 3.58 || lng < 98.65 || lng > 98.67) {
+                        String message = String.format(
+                            "<html><body style='width: 350px'>" +
+                            "<h3>⚠️ Koordinat Di Luar Area USU!</h3>" +
+                            "<p><b>Koordinat yang dimasukkan:</b><br>" +
+                            "Latitude: %.6f<br>" +
+                            "Longitude: %.6f</p>" +
+                            "<p><b>Batas Area USU:</b><br>" +
+                            "Latitude: 3.55 - 3.58<br>" +
+                            "Longitude: 98.65 - 98.67</p>" +
+                            "<p style='color: red'><b>⚠️ PERINGATAN:</b> Koordinat di luar area USU dapat " +
+                            "menyebabkan masalah routing (rute jarak jauh/internasional)!</p>" +
+                            "<p>Apakah Anda yakin ingin melanjutkan?</p>" +
+                            "</body></html>",
+                            lat, lng
+                        );
+                        
                         int confirm = JOptionPane.showConfirmDialog(editDialog,
-                            "Marker berada di luar area USU. Continue?",
-                            "Outside USU Area",
+                            message,
+                            "Koordinat Di Luar Area USU",
                             JOptionPane.YES_NO_OPTION,
                             JOptionPane.WARNING_MESSAGE);
+                        
                         if (confirm != JOptionPane.YES_OPTION) {
                             return;
                         }
                     }
                     
+                    marker.setMarkerName(txtName.getText().trim());
+                    marker.setMarkerType((String) cboType.getSelectedItem());
+                    marker.setLatitude(lat);
+                    marker.setLongitude(lng);
+                    marker.setDescription(txtDescription.getText().trim());
+                    
                     if (markerDAO.updateMarker(marker)) {
+                        String successMessage = String.format(
+                            "<html><b>✅ Marker berhasil diupdate!</b><br><br>" +
+                            "Nama: %s<br>" +
+                            "Koordinat: %.6f, %.6f</html>",
+                            marker.getMarkerName(), marker.getLatitude(), marker.getLongitude()
+                        );
                         JOptionPane.showMessageDialog(editDialog, 
-                            "Marker updated successfully!", 
-                            "Success", 
+                            successMessage, 
+                            "Sukses", 
                             JOptionPane.INFORMATION_MESSAGE);
                         editDialog.dispose();
                         loadMarkers();
                     } else {
                         JOptionPane.showMessageDialog(editDialog, 
-                            "Failed to update marker", 
+                            "<html><b>❌ Gagal mengupdate marker!</b><br><br>" +
+                            "Silakan coba lagi atau periksa log error.</html>", 
                             "Error", 
                             JOptionPane.ERROR_MESSAGE);
                     }
@@ -745,31 +772,83 @@ public class AdminMapPanel extends JPanel {
         btnSave.setForeground(Color.WHITE);
         btnSave.addActionListener(e -> {
             try {
+                String name = txtName.getText().trim();
+                if (name.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, 
+                        "Marker name cannot be empty!", 
+                        "Validation Error", 
+                        JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                
+                double lat = Double.parseDouble(txtLat.getText());
+                double lng = Double.parseDouble(txtLng.getText());
+                
+                // VALIDASI KOORDINAT USU (PENTING!)
+                if (lat < 3.55 || lat > 3.58 || lng < 98.65 || lng > 98.67) {
+                    int confirm = JOptionPane.showConfirmDialog(dialog,
+                        String.format(
+                            "<html><body style='width: 300px;'>" +
+                            "<h3 style='color: red;'>⚠️ Koordinat Di Luar Area USU!</h3>" +
+                            "<p><b>Latitude:</b> %.6f (Valid: 3.55 - 3.58)</p>" +
+                            "<p><b>Longitude:</b> %.6f (Valid: 98.65 - 98.67)</p>" +
+                            "<p><b>Area USU Medan:</b><br>" +
+                            "Lat: 3.55° - 3.58° N<br>" +
+                            "Lng: 98.65° - 98.67° E</p>" +
+                            "<p style='color: #d32f2f;'><b>Koordinat ini akan menyebabkan rute Google Maps error!</b></p>" +
+                            "<p>Apakah Anda yakin ingin menyimpan koordinat di luar area USU?</p>" +
+                            "</body></html>",
+                            lat, lng
+                        ),
+                        "Koordinat Di Luar Area USU",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE
+                    );
+                    
+                    if (confirm != JOptionPane.YES_OPTION) {
+                        return;
+                    }
+                }
+                
                 Marker marker = new Marker();
-                marker.setMarkerName(txtName.getText().trim());
+                marker.setMarkerName(name);
                 marker.setMarkerType((String) cboType.getSelectedItem());
-                marker.setLatitude(Double.parseDouble(txtLat.getText()));
-                marker.setLongitude(Double.parseDouble(txtLng.getText()));
+                marker.setLatitude(lat);
+                marker.setLongitude(lng);
                 marker.setDescription(txtDesc.getText().trim());
                 marker.setCreatedBy(currentUserId);
                 
                 if (markerDAO.insertMarker(marker)) {
                     JOptionPane.showMessageDialog(dialog, 
-                        "Marker added to map successfully!", 
+                        String.format(
+                            "<html><body style='width: 250px;'>" +
+                            "<h3 style='color: green;'>✅ Marker Berhasil Ditambahkan!</h3>" +
+                            "<p><b>Nama:</b> %s</p>" +
+                            "<p><b>Koordinat:</b><br>Lat: %.6f<br>Lng: %.6f</p>" +
+                            "<p style='color: #0066cc;'><i>Marker dapat digunakan untuk routing</i></p>" +
+                            "</body></html>",
+                            name, lat, lng
+                        ),
                         "Success", 
                         JOptionPane.INFORMATION_MESSAGE);
                     dialog.dispose();
                     loadMarkers();
                 } else {
                     JOptionPane.showMessageDialog(dialog, 
-                        "Failed to add marker", 
+                        "Failed to add marker to database", 
                         "Error", 
                         JOptionPane.ERROR_MESSAGE);
                 }
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dialog, 
-                    "Invalid coordinates", 
-                    "Error", 
+                    "<html><body style='width: 250px;'>" +
+                    "<h3 style='color: red;'>❌ Format Koordinat Salah!</h3>" +
+                    "<p>Koordinat harus berupa angka desimal.</p>" +
+                    "<p><b>Contoh format yang benar:</b><br>" +
+                    "Latitude: 3.569300<br>" +
+                    "Longitude: 98.656400</p>" +
+                    "</body></html>", 
+                    "Invalid Format", 
                     JOptionPane.ERROR_MESSAGE);
             }
         });

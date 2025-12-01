@@ -6,8 +6,12 @@ package com.mycompany.peta_usu;
 
 import com.mycompany.peta_usu.dao.BuildingDAO;
 import com.mycompany.peta_usu.dao.MarkerDAO;
+import com.mycompany.peta_usu.dao.RoadDAO;
+import com.mycompany.peta_usu.dao.RoadClosureDAO;
 import com.mycompany.peta_usu.models.Building;
 import com.mycompany.peta_usu.models.Marker;
+import com.mycompany.peta_usu.models.Road;
+import com.mycompany.peta_usu.models.RoadClosure;
 import com.mycompany.peta_usu.ui.BuildingInfoDialog;
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -24,7 +28,12 @@ import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.json.*;
 import org.jxmapviewer.JXMapViewer;
 import org.jxmapviewer.input.PanMouseInputListener;
@@ -54,6 +63,12 @@ public class MapFrame extends javax.swing.JFrame {
     private JPanel infoPanel; // Left sidebar untuk info gedung
     private CustomWaypoint selectedWaypoint; // Waypoint yang diklik
     
+    // Responsive layout components
+    private JPanel mainPanel;
+    private JPanel centerContainer;
+    private boolean isMobileLayout = false;
+    private static final int MOBILE_BREAKPOINT = 768; // Screen width threshold for mobile layout
+    
     // Routing components
     private GeoPosition startPosition = null;
     private GeoPosition endPosition = null;
@@ -65,8 +80,13 @@ public class MapFrame extends javax.swing.JFrame {
     // Database DAO
     private BuildingDAO buildingDAO;
     private MarkerDAO markerDAO;
+    private RoadDAO roadDAO;
+    private RoadClosureDAO roadClosureDAO;
     private List<Building> buildings;
     private List<Marker> markers;
+    private List<Road> roads;
+    private List<RoadClosure> activeClosures;
+    private Map<Integer, RoadClosure> closureMap;
     
     private static final Color PRIMARY_GREEN = new Color(0x388860);
     private static final Color LIGHT_GREEN = new Color(0x4CAF6E);
@@ -82,8 +102,13 @@ public class MapFrame extends javax.swing.JFrame {
         this.waypoints = java.util.Collections.synchronizedSet(new HashSet<>());
         this.buildingDAO = new BuildingDAO();
         this.markerDAO = new MarkerDAO();
+        this.roadDAO = new RoadDAO();
+        this.roadClosureDAO = new RoadClosureDAO();
         this.buildings = new ArrayList<>();
         this.markers = new ArrayList<>();
+        this.roads = new ArrayList<>();
+        this.activeClosures = new ArrayList<>();
+        this.closureMap = new HashMap<>();
         
         showLoadingDialog();
         
@@ -94,6 +119,7 @@ public class MapFrame extends javax.swing.JFrame {
                 setupMapUI();
                 loadBuildingsFromDatabase();
                 loadMarkersFromDatabase();
+                loadRoadsFromDatabase();
                
                 Thread.sleep(1500);
                 return null;
@@ -160,35 +186,33 @@ public class MapFrame extends javax.swing.JFrame {
                 waypoints.add(wp);
             }
             
-            // Update combo boxes after markers loaded
-            SwingUtilities.invokeLater(() -> {
-                List<String> lokasiUSU = new ArrayList<>();
-                synchronized (waypoints) {
-                    for (CustomWaypoint wp : waypoints) {
-                        lokasiUSU.add(wp.getName());
-                    }
-                }
-                java.util.Collections.sort(lokasiUSU);
-                
-                if (titikAwalCombo != null) {
-                    titikAwalCombo.removeAllItems();
-                    for (String lokasi : lokasiUSU) {
-                        titikAwalCombo.addItem(lokasi);
-                    }
-                }
-                
-                if (titikTujuanCombo != null) {
-                    titikTujuanCombo.removeAllItems();
-                    for (String lokasi : lokasiUSU) {
-                        titikTujuanCombo.addItem(lokasi);
-                    }
-                }
-                
-                logger.info("Combo boxes updated with " + lokasiUSU.size() + " locations");
-            });
-            
         } catch (Exception e) {
             logger.warning("Failed to load markers: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Load roads and closures from database untuk ditampilkan di map
+     */
+    private void loadRoadsFromDatabase() {
+        try {
+            roads = roadDAO.getAllRoads();
+            activeClosures = roadClosureDAO.getActiveClosures();
+            
+            logger.info("Loaded " + roads.size() + " roads from database");
+            logger.info("Loaded " + activeClosures.size() + " active closures");
+            
+            // Build closure map for fast lookup
+            closureMap.clear();
+            if (activeClosures != null) {
+                for (RoadClosure closure : activeClosures) {
+                    closureMap.put(closure.getRoadId(), closure);
+                }
+            }
+            
+        } catch (Exception e) {
+            logger.warning("Failed to load roads: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -251,7 +275,7 @@ public class MapFrame extends javax.swing.JFrame {
             }
         });
 
-        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.WHITE);
 
         JPanel headerPanel = createHeaderPanel();
@@ -261,7 +285,7 @@ public class MapFrame extends javax.swing.JFrame {
         infoPanel = createInfoPanel();
         mainPanel.add(infoPanel, BorderLayout.WEST);
 
-        JPanel centerContainer = new JPanel(new BorderLayout());
+        centerContainer = new JPanel(new BorderLayout());
         centerContainer.setBackground(Color.WHITE);
         
         JPanel routePanel = createRouteSelectionPanel();
@@ -274,8 +298,19 @@ public class MapFrame extends javax.swing.JFrame {
 
         setContentPane(mainPanel);
         
+        // Add ComponentListener for responsive layout
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                updateLayoutForScreenSize();
+            }
+        });
+        
         // Maximize window for better responsiveness
         setExtendedState(JFrame.MAXIMIZED_BOTH);
+        
+        // Initial layout check
+        SwingUtilities.invokeLater(() -> updateLayoutForScreenSize());
     }
     
     private JPanel createHeaderPanel() {
@@ -428,7 +463,8 @@ public class MapFrame extends javax.swing.JFrame {
     }
      
     private JPanel createRouteSelectionPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 15));
+        // Use FlowLayout that wraps automatically on small screens
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
         panel.setBackground(new Color(0xF5F5F5));
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_GREEN),
@@ -459,10 +495,12 @@ public class MapFrame extends javax.swing.JFrame {
         java.util.Collections.sort(lokasiUSU); // Sort alphabetically
 
         titikAwalCombo = createSearchableComboBox(lokasiUSU);
-        titikAwalCombo.setPreferredSize(new Dimension(250, 30));
+        titikAwalCombo.setPreferredSize(new Dimension(200, 30)); // Smaller for mobile
+        titikAwalCombo.setMinimumSize(new Dimension(150, 30));
 
         titikTujuanCombo = createSearchableComboBox(lokasiUSU);
-        titikTujuanCombo.setPreferredSize(new Dimension(250, 30));
+        titikTujuanCombo.setPreferredSize(new Dimension(200, 30)); // Smaller for mobile
+        titikTujuanCombo.setMinimumSize(new Dimension(150, 30));
 
         JButton cariRuteButton = new JButton("Cari Rute");
         cariRuteButton.setFont(new Font("Times New Roman", Font.BOLD, 13));
@@ -704,87 +742,165 @@ public class MapFrame extends javax.swing.JFrame {
      * Using A* pathfinding algorithm
      */
     private void calculateAndShowRoute(String startName, String endName) {
-        // Find start and end positions from waypoints
-        CustomWaypoint start = null;
-        CustomWaypoint end = null;
-        
-        synchronized (waypoints) {
-            for (CustomWaypoint wp : waypoints) {
-                if (wp.getName().equalsIgnoreCase(startName)) {
-                    start = wp;
-                }
-                if (wp.getName().equalsIgnoreCase(endName)) {
-                    end = wp;
+        try {
+            // Find start and end positions from waypoints
+            CustomWaypoint start = null;
+            CustomWaypoint end = null;
+            
+            synchronized (waypoints) {
+                for (CustomWaypoint wp : waypoints) {
+                    if (wp.getName().equalsIgnoreCase(startName)) {
+                        start = wp;
+                    }
+                    if (wp.getName().equalsIgnoreCase(endName)) {
+                        end = wp;
+                    }
                 }
             }
-        }
-        
-        if (start == null || end == null) {
+            
+            if (start == null || end == null) {
+                JOptionPane.showMessageDialog(this,
+                    "Lokasi tidak ditemukan di map!",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Set start and end positions
+            startPosition = start.getPosition();
+            endPosition = end.getPosition();
+            
+            logger.info("=== STARTING ROUTE CALCULATION ===");
+            logger.info("From: " + startName + " (" + startPosition.getLatitude() + "," + startPosition.getLongitude() + ")");
+            logger.info("To: " + endName + " (" + endPosition.getLatitude() + "," + endPosition.getLongitude() + ")");
+            
+            // Use Google Maps DirectionsService untuk rute yang mengikuti jalan sebenarnya
+            com.mycompany.peta_usu.services.DirectionsService directionsService = 
+                new com.mycompany.peta_usu.services.DirectionsService();
+            
+            com.mycompany.peta_usu.services.DirectionsService.DirectionsResult route = 
+                directionsService.getWalkingDirections(
+                    startPosition.getLatitude(),
+                    startPosition.getLongitude(),
+                    endPosition.getLatitude(),
+                    endPosition.getLongitude()
+                );
+            
+            // Check if route was successfully retrieved
+            if (route == null) {
+                logger.severe("DirectionsService returned null!");
+                JOptionPane.showMessageDialog(this,
+                    "Gagal mendapatkan rute dari Google Maps API!\nPeriksa koneksi internet dan API key.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            logger.info("Route received from Google Maps API");
+            logger.info("Distance: " + route.distanceKm + " km");
+            logger.info("Duration: " + route.durationMinutes + " minutes");
+            logger.info("Polyline points: " + (route.polyline != null ? route.polyline.size() : "null"));
+            logger.info("Road names: " + (route.roadNames != null ? route.roadNames.size() : "null"));
+            
+            // Convert DirectionsService polyline to GeoPosition
+            routePath.clear();
+            if (route.polyline != null && !route.polyline.isEmpty()) {
+                // Use Google Maps polyline (mengikuti jalan sebenarnya!)
+                List<GeoPosition> originalPath = route.polyline;
+                
+                // CRITICAL: Simplify polyline if too many points (performance issue!)
+                if (originalPath.size() > 1000) {
+                    logger.warning("⚠️ Too many polyline points: " + originalPath.size() + " - simplifying...");
+                    // Keep only every Nth point for performance
+                    int skipFactor = originalPath.size() / 500; // Target ~500 points
+                    for (int i = 0; i < originalPath.size(); i += skipFactor) {
+                        routePath.add(originalPath.get(i));
+                    }
+                    // Always add last point
+                    if (!routePath.isEmpty() && !routePath.get(routePath.size() - 1).equals(originalPath.get(originalPath.size() - 1))) {
+                        routePath.add(originalPath.get(originalPath.size() - 1));
+                    }
+                    logger.info("✅ Simplified from " + originalPath.size() + " to " + routePath.size() + " points");
+                } else {
+                    routePath.addAll(originalPath);
+                    logger.info("✅ Using all " + routePath.size() + " points (reasonable size)");
+                }
+                
+                routeVisible = true;
+                logger.info("✅ routePath filled with " + routePath.size() + " points");
+                logger.info("✅ routeVisible set to: " + routeVisible);
+            } else {
+                // Fallback to straight line if Google Maps failed
+                routePath.add(startPosition);
+                routePath.add(endPosition);
+                routeVisible = true;
+                logger.warning("⚠️ Google Maps polyline empty, using straight line fallback");
+            }
+            
+            // Update waypoints to re-render with route
+            logger.info("Calling updateWaypoints()...");
+            updateWaypoints();
+            logger.info("updateWaypoints() completed");
+            
+            // Force immediate repaint
+            logger.info("Calling mapViewer.revalidate() and repaint()...");
+            mapViewer.revalidate();
+            mapViewer.repaint();
+            logger.info("Repaint called");
+            
+            // Center map on route
+            double centerLat = (startPosition.getLatitude() + endPosition.getLatitude()) / 2;
+            double centerLon = (startPosition.getLongitude() + endPosition.getLongitude()) / 2;
+            mapViewer.setAddressLocation(new GeoPosition(centerLat, centerLon));
+            
+            // Show route info dengan data dari Google Maps
+            String pathInfo;
+            if (route.roadNames.isEmpty()) {
+                pathInfo = route.summary.isEmpty() ? "Rute langsung" : route.summary;
+            } else {
+                // Limit to first 5 checkpoints for better readability
+                int maxCheckpoints = Math.min(route.roadNames.size(), 5);
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < maxCheckpoints; i++) {
+                    if (i > 0) sb.append(" → ");
+                    sb.append(route.roadNames.get(i));
+                }
+                if (route.roadNames.size() > maxCheckpoints) {
+                    sb.append(" → ... (").append(route.roadNames.size() - maxCheckpoints).append(" checkpoint lainnya)");
+                }
+                pathInfo = sb.toString();
+            }
+            
+            logger.info("Showing info dialog...");
+            
             JOptionPane.showMessageDialog(this,
-                "Lokasi tidak ditemukan di map!",
+                String.format(
+                    "<html><body style='font-family: Times New Roman; padding: 10px; width: 400px;'>" +
+                    "<h3 style='color: #388860;'>🗺️ Informasi Rute (Google Maps)</h3>" +
+                    "<p><b>Dari:</b> %s</p>" +
+                    "<p><b>Ke:</b> %s</p>" +
+                    "<p><b>Jarak:</b> %.2f km</p>" +
+                    "<p><b>Estimasi Waktu:</b> %d menit (jalan kaki)</p>" +
+                    "<p><b>Rute:</b> %s</p>" +
+                    "<p style='color: #0066cc; margin-top: 10px;'><i>✅ Rute mengikuti jalan sebenarnya dari Google Maps</i></p>" +
+                    "</body></html>",
+                    startName, endName, route.distanceKm, route.durationMinutes, pathInfo
+                ),
+                "Info Rute Google Maps",
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            // Force another repaint after dialog closes
+            logger.info("Dialog closed, forcing final repaint...");
+            mapViewer.repaint();
+            logger.info("=== ROUTE CALCULATION COMPLETE ===");
+            
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "ERROR in calculateAndShowRoute", e);
+            JOptionPane.showMessageDialog(this,
+                "Error: " + e.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
-            return;
         }
-        
-        // Set start and end positions
-        startPosition = start.getPosition();
-        endPosition = end.getPosition();
-        
-        // Use PathfindingService to find shortest path using A* algorithm
-        com.mycompany.peta_usu.services.PathfindingService pathfinder = 
-            new com.mycompany.peta_usu.services.PathfindingService();
-        
-        com.mycompany.peta_usu.services.PathfindingService.RouteResult route = 
-            pathfinder.findShortestPath(
-                startPosition.getLatitude(),
-                startPosition.getLongitude(),
-                endPosition.getLatitude(),
-                endPosition.getLongitude()
-            );
-        
-        // Convert PathfindingService.LatLng to GeoPosition
-        routePath.clear();
-        if (route.polyline != null && !route.polyline.isEmpty()) {
-            for (com.mycompany.peta_usu.services.PathfindingService.LatLng point : route.polyline) {
-                routePath.add(new GeoPosition(point.lat, point.lng));
-            }
-            routeVisible = true;
-        } else {
-            // Fallback to straight line if no path found
-            routePath.add(startPosition);
-            routePath.add(endPosition);
-            routeVisible = true;
-        }
-        
-        // Update waypoints to re-render with route
-        updateWaypoints();
-        
-        // Center map on route
-        double centerLat = (startPosition.getLatitude() + endPosition.getLatitude()) / 2;
-        double centerLon = (startPosition.getLongitude() + endPosition.getLongitude()) / 2;
-        mapViewer.setAddressLocation(new GeoPosition(centerLat, centerLon));
-        
-        // Show route info dengan data dari A* algorithm
-        String pathInfo = route.roadsUsed.isEmpty() ? 
-            "Rute langsung (tidak ada jalan)" : 
-            String.format("Melalui %d jalan", route.roadsUsed.size());
-        
-        JOptionPane.showMessageDialog(this,
-            String.format(
-                "<html><body style='font-family: Times New Roman; padding: 10px;'>" +
-                "<h3 style='color: #388860;'>📍 Informasi Rute Tercepat (A* Algorithm)</h3>" +
-                "<p><b>Dari:</b> %s</p>" +
-                "<p><b>Ke:</b> %s</p>" +
-                "<p><b>Jarak:</b> %.2f km</p>" +
-                "<p><b>Estimasi Waktu:</b> %d menit (jalan kaki)</p>" +
-                "<p><b>Rute:</b> %s</p>" +
-                "<p style='color: #0066cc;'><i>Menggunakan pathfinding A* untuk rute tercepat</i></p>" +
-                "</body></html>",
-                startName, endName, route.totalDistanceKm, route.estimatedMinutes, pathInfo
-            ),
-            "Info Rute Tercepat",
-            JOptionPane.INFORMATION_MESSAGE);
     }
     
     /**
@@ -807,34 +923,111 @@ public class MapFrame extends javax.swing.JFrame {
     }
     
     /**
+     * Draw arrow for road direction
+     */
+    private void drawRoadArrow(Graphics2D g, int x1, int y1, int x2, int y2, Color color) {
+        double angle = Math.atan2(y2 - y1, x2 - x1);
+        int arrowSize = 12; // Increased from 8 to 12 for better visibility
+        
+        // Arrow point at 60% of the line (moved closer to middle)
+        int midX = (int)(x1 + 0.6 * (x2 - x1));
+        int midY = (int)(y1 + 0.6 * (y2 - y1));
+        
+        int[] xPoints = new int[3];
+        int[] yPoints = new int[3];
+        
+        // Arrow tip
+        xPoints[0] = midX;
+        yPoints[0] = midY;
+        
+        // Left wing
+        xPoints[1] = (int)(midX - arrowSize * Math.cos(angle - Math.PI / 6));
+        yPoints[1] = (int)(midY - arrowSize * Math.sin(angle - Math.PI / 6));
+        
+        // Right wing
+        xPoints[2] = (int)(midX - arrowSize * Math.cos(angle + Math.PI / 6));
+        yPoints[2] = (int)(midY - arrowSize * Math.sin(angle + Math.PI / 6));
+        
+        // Draw white outline for better visibility
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(3));
+        g.drawPolygon(xPoints, yPoints, 3);
+        
+        // Fill with road color
+        g.setColor(color);
+        g.fillPolygon(xPoints, yPoints, 3);
+    }
+    
+    /**
+     * Draw small arrow for road direction (less intrusive)
+     */
+    private void drawSmallRoadArrow(Graphics2D g, int x1, int y1, int x2, int y2, Color color, int midX, int midY) {
+        double angle = Math.atan2(y2 - y1, x2 - x1);
+        int arrowSize = 6; // Smaller arrow
+        
+        int[] xPoints = new int[3];
+        int[] yPoints = new int[3];
+        
+        // Arrow tip at midpoint
+        xPoints[0] = midX;
+        yPoints[0] = midY;
+        
+        // Left wing
+        xPoints[1] = (int)(midX - arrowSize * Math.cos(angle - Math.PI / 6));
+        yPoints[1] = (int)(midY - arrowSize * Math.sin(angle - Math.PI / 6));
+        
+        // Right wing
+        xPoints[2] = (int)(midX - arrowSize * Math.cos(angle + Math.PI / 6));
+        yPoints[2] = (int)(midY - arrowSize * Math.sin(angle + Math.PI / 6));
+        
+        // Fill with road color (no outline for cleaner look)
+        g.setColor(color);
+        g.fillPolygon(xPoints, yPoints, 3);
+    }
+    
+    /**
      * Update combo boxes with loaded waypoints
      */
     private void updateLocationComboBoxes() {
-        List<String> lokasiUSU = new ArrayList<>();
-        synchronized (waypoints) {
-            for (CustomWaypoint wp : waypoints) {
-                lokasiUSU.add(wp.getName());
+        SwingUtilities.invokeLater(() -> {
+            List<String> lokasiUSU = new ArrayList<>();
+            
+            // Collect all location names from waypoints
+            synchronized (waypoints) {
+                for (CustomWaypoint wp : waypoints) {
+                    lokasiUSU.add(wp.getName());
+                }
             }
-        }
-        java.util.Collections.sort(lokasiUSU); // Sort alphabetically
-        
-        // Update titik awal combo
-        if (titikAwalCombo != null) {
-            titikAwalCombo.removeAllItems();
-            for (String lokasi : lokasiUSU) {
-                titikAwalCombo.addItem(lokasi);
+            
+            // Sort alphabetically
+            java.util.Collections.sort(lokasiUSU);
+            
+            logger.info("Updating combo boxes with " + lokasiUSU.size() + " locations");
+            
+            // Update titik awal combo
+            if (titikAwalCombo != null) {
+                titikAwalCombo.removeAllItems();
+                titikAwalCombo.addItem(""); // Add empty option
+                for (String lokasi : lokasiUSU) {
+                    titikAwalCombo.addItem(lokasi);
+                }
+                logger.info("Titik Awal combo updated with " + titikAwalCombo.getItemCount() + " items");
+            } else {
+                logger.warning("titikAwalCombo is null!");
             }
-        }
-        
-        // Update titik tujuan combo
-        if (titikTujuanCombo != null) {
-            titikTujuanCombo.removeAllItems();
-            for (String lokasi : lokasiUSU) {
-                titikTujuanCombo.addItem(lokasi);
+            
+            // Update titik tujuan combo
+            if (titikTujuanCombo != null) {
+                titikTujuanCombo.removeAllItems();
+                titikTujuanCombo.addItem(""); // Add empty option
+                for (String lokasi : lokasiUSU) {
+                    titikTujuanCombo.addItem(lokasi);
+                }
+                logger.info("Titik Tujuan combo updated with " + titikTujuanCombo.getItemCount() + " items");
+            } else {
+                logger.warning("titikTujuanCombo is null!");
             }
-        }
-        
-        logger.info("Combo boxes updated with " + lokasiUSU.size() + " locations");
+        });
     }
 
     private void addMarker(double lat, double lon, String name, String type, String description, String icon) {
@@ -849,33 +1042,187 @@ public class MapFrame extends javax.swing.JFrame {
             protected void doPaint(Graphics2D g, JXMapViewer map, int width, int height) {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+                // Draw all roads from database (background layer)
+                if (roads != null && !roads.isEmpty()) {
+                    for (Road road : roads) {
+                        // Determine color based on closure status
+                        Color roadColor = Color.BLACK; // Default: normal road
+                        int strokeWidth = 5; // Increased for better visibility
+                        boolean isDashed = false;
+                        
+                        // PRIORITY: Check closure status first (red for closed roads)
+                        if (closureMap.containsKey(road.getRoadId())) {
+                            RoadClosure closure = closureMap.get(road.getRoadId());
+                            if (closure.getClosureType() == RoadClosure.ClosureType.PERMANENT) {
+                                roadColor = new Color(220, 20, 60); // Red - jalan tertutup permanen
+                                strokeWidth = 6; // Lebih tebal untuk jalan tertutup
+                            } else if (closure.getClosureType() == RoadClosure.ClosureType.TEMPORARY) {
+                                roadColor = new Color(255, 140, 0); // Orange - jalan tertutup sementara
+                                strokeWidth = 6;
+                            }
+                        } else if (road.isOneWay()) {
+                            // Only apply one-way styling if not closed
+                            roadColor = new Color(0, 100, 200); // Blue for one-way
+                            isDashed = true;
+                        }
+                        
+                        // Set stroke style
+                        g.setColor(roadColor);
+                        if (isDashed) {
+                            g.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, 
+                                BasicStroke.JOIN_ROUND, 0, new float[]{10, 5}, 0));
+                        } else {
+                            g.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                        }
+                        
+                        // Check if road has Google Maps polyline
+                        if (road.getPolylinePoints() != null && !road.getPolylinePoints().isEmpty()) {
+                            // Use detailed polyline from Google Maps API
+                            List<GeoPosition> polyline = decodePolyline(road.getPolylinePoints());
+                            
+                            if (polyline.size() > 1) {
+                                // Draw polyline yang mengikuti jalan sebenarnya dari Google Maps
+                                for (int i = 0; i < polyline.size() - 1; i++) {
+                                    GeoPosition p1 = polyline.get(i);
+                                    GeoPosition p2 = polyline.get(i + 1);
+                                    
+                                    Point2D pt1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                                    Point2D pt2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                                    
+                                    Rectangle viewportBounds = map.getViewportBounds();
+                                    int px1 = (int)(pt1.getX() - viewportBounds.getX());
+                                    int py1 = (int)(pt1.getY() - viewportBounds.getY());
+                                    int px2 = (int)(pt2.getX() - viewportBounds.getX());
+                                    int py2 = (int)(pt2.getY() - viewportBounds.getY());
+                                    
+                                    g.drawLine(px1, py1, px2, py2);
+                                }
+                                
+                                // Draw arrow at midpoint untuk direction
+                                int midIdx = polyline.size() / 2;
+                                if (midIdx > 0 && midIdx < polyline.size()) {
+                                    GeoPosition p1 = polyline.get(midIdx - 1);
+                                    GeoPosition p2 = polyline.get(midIdx);
+                                    
+                                    Point2D pt1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                                    Point2D pt2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                                    
+                                    Rectangle viewportBounds = map.getViewportBounds();
+                                    int px1 = (int)(pt1.getX() - viewportBounds.getX());
+                                    int py1 = (int)(pt1.getY() - viewportBounds.getY());
+                                    int px2 = (int)(pt2.getX() - viewportBounds.getX());
+                                    int py2 = (int)(pt2.getY() - viewportBounds.getY());
+                                    
+                                    drawSmallRoadArrow(g, px1, py1, px2, py2, roadColor, (px1 + px2) / 2, (py1 + py2) / 2);
+                                }
+                            }
+                        } else {
+                            // Fallback: Draw straight line jika belum ada polyline dari Google Maps
+                            GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
+                            GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
+                            
+                            Point2D startPixel = map.getTileFactory().geoToPixel(start, map.getZoom());
+                            Point2D endPixel = map.getTileFactory().geoToPixel(end, map.getZoom());
+                            
+                            Rectangle viewportBounds = map.getViewportBounds();
+                            int x1 = (int)(startPixel.getX() - viewportBounds.getX());
+                            int y1 = (int)(startPixel.getY() - viewportBounds.getY());
+                            int x2 = (int)(endPixel.getX() - viewportBounds.getX());
+                            int y2 = (int)(endPixel.getY() - viewportBounds.getY());
+                            
+                            g.drawLine(x1, y1, x2, y2);
+                            
+                            // Draw small circle at endpoints
+                            g.fillOval(x1 - 2, y1 - 2, 4, 4);
+                            g.fillOval(x2 - 2, y2 - 2, 4, 4);
+                            
+                            // Draw arrow for direction
+                            int midX = (x1 + x2) / 2;
+                            int midY = (y1 + y2) / 2;
+                            drawSmallRoadArrow(g, x1, y1, x2, y2, roadColor, midX, midY);
+                        }
+                    }
+                }
+
                 // Draw route polyline if routing is active
                 if (routeVisible && !routePath.isEmpty()) {
-                    g.setColor(new Color(66, 133, 244, 200)); // Google Maps blue
-                    g.setStroke(new BasicStroke(5, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    logger.info("🎨 RENDERING ROUTE: routeVisible=" + routeVisible + ", routePath.size()=" + routePath.size());
                     
+                    // Draw YELLOW OUTLINE first for maximum visibility
+                    g.setColor(new Color(255, 235, 59)); // Bright Yellow
+                    g.setStroke(new BasicStroke(12, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                     for (int i = 0; i < routePath.size() - 1; i++) {
-                        Point2D p1 = map.convertGeoPositionToPoint(routePath.get(i));
-                        Point2D p2 = map.convertGeoPositionToPoint(routePath.get(i + 1));
-                        g.drawLine((int)p1.getX(), (int)p1.getY(), (int)p2.getX(), (int)p2.getY());
+                        Point2D p1 = map.getTileFactory().geoToPixel(routePath.get(i), map.getZoom());
+                        Point2D p2 = map.getTileFactory().geoToPixel(routePath.get(i + 1), map.getZoom());
+                        
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        int x1 = (int)(p1.getX() - viewportBounds.getX());
+                        int y1 = (int)(p1.getY() - viewportBounds.getY());
+                        int x2 = (int)(p2.getX() - viewportBounds.getX());
+                        int y2 = (int)(p2.getY() - viewportBounds.getY());
+                        
+                        g.drawLine(x1, y1, x2, y2);
                     }
                     
-                    // Draw start marker (green)
+                    // Draw SKY BLUE route on top - BIRU LANGIT!
+                    g.setColor(new Color(135, 206, 235)); // Sky Blue
+                    g.setStroke(new BasicStroke(8, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    for (int i = 0; i < routePath.size() - 1; i++) {
+                        Point2D p1 = map.getTileFactory().geoToPixel(routePath.get(i), map.getZoom());
+                        Point2D p2 = map.getTileFactory().geoToPixel(routePath.get(i + 1), map.getZoom());
+                        
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        int x1 = (int)(p1.getX() - viewportBounds.getX());
+                        int y1 = (int)(p1.getY() - viewportBounds.getY());
+                        int x2 = (int)(p2.getX() - viewportBounds.getX());
+                        int y2 = (int)(p2.getY() - viewportBounds.getY());
+                        
+                        g.drawLine(x1, y1, x2, y2);
+                    }
+                    
+                    logger.info("✅ Route rendering completed!");
+                    
+                    // Draw start marker (green circle with white center)
                     if (startPosition != null) {
-                        Point2D startPt = map.convertGeoPositionToPoint(startPosition);
-                        g.setColor(new Color(52, 168, 83)); // Google Maps green
-                        g.fillOval((int)startPt.getX() - 8, (int)startPt.getY() - 8, 16, 16);
+                        Point2D startPixel = map.getTileFactory().geoToPixel(startPosition, map.getZoom());
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        int sx = (int)(startPixel.getX() - viewportBounds.getX());
+                        int sy = (int)(startPixel.getY() - viewportBounds.getY());
+                        
+                        g.setColor(new Color(52, 168, 83)); // Green
+                        g.fillOval(sx - 10, sy - 10, 20, 20);
                         g.setColor(Color.WHITE);
-                        g.fillOval((int)startPt.getX() - 4, (int)startPt.getY() - 4, 8, 8);
+                        g.fillOval(sx - 5, sy - 5, 10, 10);
+                        
+                        // Label "A"
+                        g.setColor(new Color(52, 168, 83));
+                        g.setFont(new Font("Arial", Font.BOLD, 14));
+                        g.drawString("A", sx - 4, sy + 5);
                     }
                     
-                    // Draw end marker (red)
+                    // Draw end marker (red circle with white center)
                     if (endPosition != null) {
-                        Point2D endPt = map.convertGeoPositionToPoint(endPosition);
-                        g.setColor(new Color(234, 67, 53)); // Google Maps red
-                        g.fillOval((int)endPt.getX() - 8, (int)endPt.getY() - 8, 16, 16);
+                        Point2D endPixel = map.getTileFactory().geoToPixel(endPosition, map.getZoom());
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        int ex = (int)(endPixel.getX() - viewportBounds.getX());
+                        int ey = (int)(endPixel.getY() - viewportBounds.getY());
+                        
+                        g.setColor(new Color(234, 67, 53)); // Red
+                        g.fillOval(ex - 10, ey - 10, 20, 20);
                         g.setColor(Color.WHITE);
-                        g.fillOval((int)endPt.getX() - 4, (int)endPt.getY() - 4, 8, 8);
+                        g.fillOval(ex - 5, ey - 5, 10, 10);
+                        
+                        // Label "B"
+                        g.setColor(new Color(234, 67, 53));
+                        g.setFont(new Font("Arial", Font.BOLD, 14));
+                        g.drawString("B", ex - 4, ey + 5);
+                    }
+                } else {
+                    if (!routeVisible) {
+                        logger.warning("⚠️ Route NOT rendered: routeVisible is FALSE");
+                    }
+                    if (routePath.isEmpty()) {
+                        logger.warning("⚠️ Route NOT rendered: routePath is EMPTY");
                     }
                 }
 
@@ -889,9 +1236,11 @@ public class MapFrame extends javax.swing.JFrame {
                 // Synchronized iteration to prevent ConcurrentModificationException
                 synchronized (waypoints) {
                     for (CustomWaypoint wp : waypoints) {
-                        Point2D point = mapViewer.convertGeoPositionToPoint(wp.getPosition());
-                        int x = (int) point.getX();
-                        int y = (int) point.getY();
+                        // Convert geo position to pixel using tile factory (consistent with Google Maps)
+                        Point2D pixel = map.getTileFactory().geoToPixel(wp.getPosition(), map.getZoom());
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        int x = (int)(pixel.getX() - viewportBounds.getX());
+                        int y = (int)(pixel.getY() - viewportBounds.getY());
 
                         // If waypoint has custom icon path, render uploaded icon
                         if (wp.getIconPath() != null && !wp.getIconPath().isEmpty()) {
@@ -936,6 +1285,9 @@ public class MapFrame extends javax.swing.JFrame {
 
         // Set painter tanpa area polygon
         mapViewer.setOverlayPainter(waypointPainter);
+        
+        // Force repaint to show route immediately
+        mapViewer.repaint();
 
         for (MouseListener ml : mapViewer.getMouseListeners()) {
             if (ml.getClass().isAnonymousClass()) {
@@ -951,8 +1303,13 @@ public class MapFrame extends javax.swing.JFrame {
                     // Synchronized iteration to prevent ConcurrentModificationException
                     synchronized (waypoints) {
                         for (CustomWaypoint wp : waypoints) {
-                            Point2D waypointPoint = mapViewer.convertGeoPositionToPoint(wp.getPosition());
-                            if (point.distance(waypointPoint) < 15) {
+                            Point2D pixel = mapViewer.getTileFactory().geoToPixel(wp.getPosition(), mapViewer.getZoom());
+                            Rectangle viewportBounds = mapViewer.getViewportBounds();
+                            int wpX = (int)(pixel.getX() - viewportBounds.getX());
+                            int wpY = (int)(pixel.getY() - viewportBounds.getY());
+                            Point2D waypointPoint = new Point2D.Double(wpX, wpY);
+                            
+                            if (point.distance(waypointPoint) < 20) {
                                 showWaypointInfo(wp);
                                 break;
                             }
@@ -965,15 +1322,49 @@ public class MapFrame extends javax.swing.JFrame {
         logger.info("Waypoints updated and painted on map");
     }
 
-    private Color getMarkerColor(String type) {
-        switch (type.toLowerCase()) {
-            case "fakultas": return new Color(220, 53, 69);
-            case "perpustakaan": return new Color(0, 123, 255);
-            case "musholla": return new Color(40, 167, 69);
-            case "kesehatan": return new Color(255, 193, 7);
-            case "kantin": return new Color(108, 117, 125);
-            case "olahraga": return new Color(23, 162, 184);
-            default: return Color.RED;
+    /**
+     * Update layout based on screen width
+     * Switch between desktop (sidebar left) and mobile (sidebar bottom) layout
+     */
+    private void updateLayoutForScreenSize() {
+        int width = getWidth();
+        boolean shouldBeMobile = width < MOBILE_BREAKPOINT;
+        
+        // Only update if layout mode changes
+        if (shouldBeMobile != isMobileLayout) {
+            isMobileLayout = shouldBeMobile;
+            
+            // Remove existing components
+            mainPanel.remove(infoPanel);
+            mainPanel.remove(centerContainer);
+            
+            if (isMobileLayout) {
+                // Mobile layout: info panel at bottom
+                mainPanel.add(centerContainer, BorderLayout.CENTER);
+                
+                // Make info panel scrollable for mobile
+                JScrollPane infoScrollPane = new JScrollPane(infoPanel);
+                infoScrollPane.setPreferredSize(new Dimension(0, 150));
+                infoScrollPane.setBorder(BorderFactory.createMatteBorder(2, 0, 0, 0, PRIMARY_GREEN));
+                infoScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+                infoScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+                
+                mainPanel.add(infoScrollPane, BorderLayout.SOUTH);
+                
+                // Update info panel width for mobile
+                infoPanel.setPreferredSize(new Dimension(width - 20, 140));
+            } else {
+                // Desktop layout: info panel at left
+                infoPanel.setPreferredSize(new Dimension(250, 0));
+                mainPanel.add(infoPanel, BorderLayout.WEST);
+                mainPanel.add(centerContainer, BorderLayout.CENTER);
+            }
+            
+            // Refresh layout
+            mainPanel.revalidate();
+            mainPanel.repaint();
+            
+            logger.info("Layout switched to: " + (isMobileLayout ? "MOBILE" : "DESKTOP") + " (width: " + width + "px)");
         }
     }
 
@@ -987,6 +1378,51 @@ public class MapFrame extends javax.swing.JFrame {
             dispose();
             System.exit(0);
         }
+    }
+    
+    /**
+     * Decode Google Maps encoded polyline
+     */
+    private List<GeoPosition> decodePolyline(String encoded) {
+        List<GeoPosition> poly = new ArrayList<>();
+        int index = 0;
+        int len = encoded.length();
+        int lat = 0;
+        int lng = 0;
+        
+        while (index < len) {
+            int b;
+            int shift = 0;
+            int result = 0;
+            
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            
+            int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+            
+            shift = 0;
+            result = 0;
+            
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            
+            int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+            
+            double latitude = lat / 1E5;
+            double longitude = lng / 1E5;
+            
+            poly.add(new GeoPosition(latitude, longitude));
+        }
+        
+        return poly;
     }
     
     private static class CustomWaypoint extends DefaultWaypoint {

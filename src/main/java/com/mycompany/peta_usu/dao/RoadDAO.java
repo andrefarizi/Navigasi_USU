@@ -22,8 +22,9 @@ public class RoadDAO {
     // Create
     public boolean insertRoad(Road road) {
         String sql = "INSERT INTO roads (road_name, road_type, start_lat, start_lng, " +
-                    "end_lat, end_lng, is_one_way, distance, description) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "end_lat, end_lng, is_one_way, distance, description, " +
+                    "polyline_points, google_road_name, road_segments, last_gmaps_update) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, road.getRoadName());
@@ -35,6 +36,10 @@ public class RoadDAO {
             pstmt.setBoolean(7, road.isOneWay());
             pstmt.setDouble(8, road.getDistance());
             pstmt.setString(9, road.getDescription());
+            pstmt.setString(10, road.getPolylinePoints());
+            pstmt.setString(11, road.getGoogleRoadName());
+            pstmt.setString(12, road.getRoadSegments());
+            pstmt.setTimestamp(13, road.getLastGmapsUpdate());
             
             int affected = pstmt.executeUpdate();
             if (affected > 0) {
@@ -90,7 +95,8 @@ public class RoadDAO {
     public boolean updateRoad(Road road) {
         String sql = "UPDATE roads SET road_name = ?, road_type = ?, start_lat = ?, " +
                     "start_lng = ?, end_lat = ?, end_lng = ?, is_one_way = ?, " +
-                    "distance = ?, description = ? WHERE road_id = ?";
+                    "distance = ?, description = ?, polyline_points = ?, google_road_name = ?, " +
+                    "road_segments = ?, last_gmaps_update = ? WHERE road_id = ?";
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, road.getRoadName());
@@ -102,7 +108,11 @@ public class RoadDAO {
             pstmt.setBoolean(7, road.isOneWay());
             pstmt.setDouble(8, road.getDistance());
             pstmt.setString(9, road.getDescription());
-            pstmt.setInt(10, road.getRoadId());
+            pstmt.setString(10, road.getPolylinePoints());
+            pstmt.setString(11, road.getGoogleRoadName());
+            pstmt.setString(12, road.getRoadSegments());
+            pstmt.setTimestamp(13, road.getLastGmapsUpdate());
+            pstmt.setInt(14, road.getRoadId());
             
             int affected = pstmt.executeUpdate();
             if (affected > 0) {
@@ -165,9 +175,32 @@ public class RoadDAO {
         road.setEndLat(rs.getDouble("end_lat"));
         road.setEndLng(rs.getDouble("end_lng"));
         road.setOneWay(rs.getBoolean("is_one_way"));
-        // distance and description columns don't exist in roads table
-        // road.setDistance(rs.getDouble("distance"));
-        // road.setDescription(rs.getString("description"));
+        
+        // Try to get optional fields (may not exist in old schema)
+        try {
+            road.setDistance(rs.getDouble("distance"));
+        } catch (SQLException e) { /* ignore if column doesn't exist */ }
+        
+        try {
+            road.setDescription(rs.getString("description"));
+        } catch (SQLException e) { /* ignore if column doesn't exist */ }
+        
+        try {
+            road.setPolylinePoints(rs.getString("polyline_points"));
+        } catch (SQLException e) { /* ignore if column doesn't exist */ }
+        
+        try {
+            road.setGoogleRoadName(rs.getString("google_road_name"));
+        } catch (SQLException e) { /* ignore if column doesn't exist */ }
+        
+        try {
+            road.setRoadSegments(rs.getString("road_segments"));
+        } catch (SQLException e) { /* ignore if column doesn't exist */ }
+        
+        try {
+            road.setLastGmapsUpdate(rs.getTimestamp("last_gmaps_update"));
+        } catch (SQLException e) { /* ignore if column doesn't exist */ }
+        
         road.setCreatedAt(rs.getTimestamp("created_at"));
         road.setUpdatedAt(rs.getTimestamp("updated_at"));
         return road;
