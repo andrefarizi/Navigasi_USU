@@ -2,19 +2,20 @@ package com.mycompany.peta_usu.ui;
 
 import com.mycompany.peta_usu.dao.*;
 import com.mycompany.peta_usu.models.*;
+import com.mycompany.peta_usu.services.GoogleMapsRoadService;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.sql.Timestamp;
 import org.jxmapviewer.JXMapViewer;
 import org.jxmapviewer.viewer.*;
-import org.jxmapviewer.OSMTileFactoryInfo;
 import org.jxmapviewer.input.*;
 import javax.swing.event.MouseInputListener;
-import org.jxmapviewer.painter.CompoundPainter;
 import org.jxmapviewer.painter.Painter;
 import java.awt.geom.Point2D;
 
@@ -33,6 +34,7 @@ public class RoadMapPanel extends JPanel {
     
     private RoadDAO roadDAO;
     private RoadClosureDAO closureDAO;
+    private GoogleMapsRoadService roadService;
     private int currentUserId;
     
     // UI Components
@@ -44,6 +46,7 @@ public class RoadMapPanel extends JPanel {
     private JButton btnDeleteRoad;
     private JButton btnSetClosure;
     private JButton btnRefresh;
+    private JButton btnFetchGoogleMaps;
     
     // Data
     private List<Road> allRoads;
@@ -54,6 +57,7 @@ public class RoadMapPanel extends JPanel {
         this.currentUserId = userId;
         this.roadDAO = new RoadDAO();
         this.closureDAO = new RoadClosureDAO();
+        this.roadService = new GoogleMapsRoadService();
         this.activeClosures = new HashMap<>();
         
         initComponents();
@@ -96,10 +100,18 @@ public class RoadMapPanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Peta Jalan USU"));
         
-        // Initialize JXMapViewer
+        // Initialize JXMapViewer with Google Maps
         mapViewer = new JXMapViewer();
-        TileFactoryInfo info = new OSMTileFactoryInfo();
+        TileFactoryInfo info = new TileFactoryInfo(0, 17, 17, 256, true, true,
+                "http://mt0.google.com/vt/lyrs=m", "x", "y", "z") {
+            @Override
+            public String getTileUrl(int x, int y, int zoom) {
+                zoom = this.getTotalMapZoom() - zoom;
+                return String.format("https://mt0.google.com/vt/lyrs=m&x=%d&y=%d&z=%d", x, y, zoom);
+            }
+        };
         DefaultTileFactory tileFactory = new DefaultTileFactory(info);
+        tileFactory.setThreadPoolSize(8);
         mapViewer.setTileFactory(tileFactory);
         
         // Set center ke USU
@@ -191,39 +203,67 @@ public class RoadMapPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(roadsTable);
         panel.add(scrollPane, BorderLayout.CENTER);
         
-        // Buttons panel
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        // Buttons panel - gunakan GridLayout 2 baris agar semua button terlihat
+        JPanel buttonsContainer = new JPanel(new BorderLayout());
+        
+        // Baris 1 - CRUD buttons
+        JPanel buttonsRow1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
         
         btnAddRoad = new JButton("➕ Tambah Jalan");
         btnAddRoad.setBackground(new Color(76, 175, 80));
         btnAddRoad.setForeground(Color.WHITE);
+        btnAddRoad.setFocusPainted(false);
         btnAddRoad.addActionListener(e -> showAddRoadDialog());
         
         btnEditRoad = new JButton("✏️ Edit");
         btnEditRoad.setBackground(new Color(33, 150, 243));
         btnEditRoad.setForeground(Color.WHITE);
+        btnEditRoad.setFocusPainted(false);
         btnEditRoad.addActionListener(e -> editSelectedRoad());
-        
-        btnSetClosure = new JButton("🚧 Atur Penutupan");
-        btnSetClosure.setBackground(new Color(255, 152, 0));
-        btnSetClosure.setForeground(Color.WHITE);
-        btnSetClosure.addActionListener(e -> setRoadClosure());
         
         btnDeleteRoad = new JButton("🗑️ Hapus");
         btnDeleteRoad.setBackground(new Color(244, 67, 54));
         btnDeleteRoad.setForeground(Color.WHITE);
+        btnDeleteRoad.setFocusPainted(false);
         btnDeleteRoad.addActionListener(e -> deleteSelectedRoad());
         
         btnRefresh = new JButton("🔄 Refresh");
+        btnRefresh.setFocusPainted(false);
         btnRefresh.addActionListener(e -> loadRoads());
         
-        buttonsPanel.add(btnAddRoad);
-        buttonsPanel.add(btnEditRoad);
-        buttonsPanel.add(btnSetClosure);
-        buttonsPanel.add(btnDeleteRoad);
-        buttonsPanel.add(btnRefresh);
+        buttonsRow1.add(btnAddRoad);
+        buttonsRow1.add(btnEditRoad);
+        buttonsRow1.add(btnDeleteRoad);
+        buttonsRow1.add(btnRefresh);
         
-        panel.add(buttonsPanel, BorderLayout.SOUTH);
+        // Baris 2 - Google Maps & Closure buttons
+        JPanel buttonsRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        
+        btnFetchGoogleMaps = new JButton("🗺️ Fetch dari Google Maps");
+        btnFetchGoogleMaps.setBackground(new Color(66, 133, 244)); // Google Blue
+        btnFetchGoogleMaps.setForeground(Color.WHITE);
+        btnFetchGoogleMaps.setFocusPainted(false);
+        btnFetchGoogleMaps.setFont(new Font("Arial", Font.BOLD, 12));
+        btnFetchGoogleMaps.setToolTipText("Ambil polyline dan nama jalan dari Google Maps API");
+        btnFetchGoogleMaps.addActionListener(e -> fetchGoogleMapsData());
+        
+        btnSetClosure = new JButton("🚧 Atur Penutupan");
+        btnSetClosure.setBackground(new Color(255, 152, 0));
+        btnSetClosure.setForeground(Color.WHITE);
+        btnSetClosure.setFocusPainted(false);
+        btnSetClosure.addActionListener(e -> setRoadClosure());
+        
+        buttonsRow2.add(btnFetchGoogleMaps);
+        buttonsRow2.add(btnSetClosure);
+        
+        // Combine rows
+        JPanel buttonsCombined = new JPanel();
+        buttonsCombined.setLayout(new BoxLayout(buttonsCombined, BoxLayout.Y_AXIS));
+        buttonsCombined.add(buttonsRow1);
+        buttonsCombined.add(buttonsRow2);
+        
+        buttonsContainer.add(buttonsCombined, BorderLayout.CENTER);
+        panel.add(buttonsContainer, BorderLayout.SOUTH);
         
         return panel;
     }
@@ -231,9 +271,16 @@ public class RoadMapPanel extends JPanel {
     private JPanel createBottomPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.setBorder(BorderFactory.createEtchedBorder());
+        panel.setBackground(new Color(240, 248, 255)); // Light blue background
         
-        JLabel lblInfo = new JLabel("Klik jalan di peta untuk memilih | Klik 'Atur Penutupan' untuk mengubah status jalan");
-        lblInfo.setFont(new Font("Arial", Font.PLAIN, 12));
+        JLabel lblInfo = new JLabel(
+            "<html>" +
+            "<b>📍 Tips:</b> " +
+            "Pilih jalan → Klik <b>'🗺️ Fetch dari Google Maps'</b> untuk mendapatkan rute sebenarnya | " +
+            "Klik <b>'🚧 Atur Penutupan'</b> untuk tutup jalan (akan tampil MERAH di peta)" +
+            "</html>"
+        );
+        lblInfo.setFont(new Font("Arial", Font.PLAIN, 11));
         panel.add(lblInfo);
         
         return panel;
@@ -289,12 +336,13 @@ public class RoadMapPanel extends JPanel {
                 for (Road road : allRoads) {
                     // Determine color based on closure status
                     Color roadColor = Color.BLACK;
-                    int strokeWidth = 3;
+                    int strokeWidth = 4; // Increased for better visibility
                     
                     if (activeClosures.containsKey(road.getRoadId())) {
                         RoadClosure closure = activeClosures.get(road.getRoadId());
                         if (closure.getClosureType() == RoadClosure.ClosureType.PERMANENT) {
-                            roadColor = Color.RED;
+                            roadColor = new Color(220, 20, 60); // Red untuk jalan tertutup
+                            strokeWidth = 5; // Lebih tebal untuk jalan tertutup
                         } else if (closure.getClosureType() == RoadClosure.ClosureType.TEMPORARY) {
                             roadColor = new Color(255, 140, 0); // Orange
                         }
@@ -304,7 +352,11 @@ public class RoadMapPanel extends JPanel {
                     BasicStroke stroke;
                     if (road.isOneWay()) {
                         // One way road - dashed blue line
-                        roadColor = new Color(0, 100, 200); // Blue
+                        if (activeClosures.containsKey(road.getRoadId())) {
+                            // Keep closure color if closed
+                        } else {
+                            roadColor = new Color(0, 100, 200); // Blue
+                        }
                         stroke = new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, 
                             BasicStroke.JOIN_ROUND, 0, new float[]{10, 5}, 0);
                     } else {
@@ -312,38 +364,117 @@ public class RoadMapPanel extends JPanel {
                         stroke = new BasicStroke(strokeWidth);
                     }
                     
-                    // Convert geo positions to screen points
-                    GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
-                    GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
-                    
-                    Point2D startPoint = map.getTileFactory().geoToPixel(start, map.getZoom());
-                    Point2D endPoint = map.getTileFactory().geoToPixel(end, map.getZoom());
-                    
-                    Rectangle viewportBounds = map.getViewportBounds();
-                    int x1 = (int)(startPoint.getX() - viewportBounds.getX());
-                    int y1 = (int)(startPoint.getY() - viewportBounds.getY());
-                    int x2 = (int)(endPoint.getX() - viewportBounds.getX());
-                    int y2 = (int)(endPoint.getY() - viewportBounds.getY());
-                    
-                    // Draw road line
                     g.setColor(roadColor);
                     g.setStroke(stroke);
-                    g.drawLine(x1, y1, x2, y2);
                     
-                    // Draw arrow untuk one-way roads
-                    if (road.isOneWay()) {
-                        drawArrow(g, x1, y1, x2, y2, roadColor);
+                    // Check if road has Google Maps polyline
+                    if (road.getPolylinePoints() != null && !road.getPolylinePoints().isEmpty()) {
+                        // Use detailed polyline from Google Maps
+                        List<GeoPosition> polyline = decodePolyline(road.getPolylinePoints());
+                        
+                        if (polyline.size() > 1) {
+                            // Draw polyline sebagai multi-segment line yang mengikuti jalan
+                            for (int i = 0; i < polyline.size() - 1; i++) {
+                                GeoPosition p1 = polyline.get(i);
+                                GeoPosition p2 = polyline.get(i + 1);
+                                
+                                Point2D pt1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                                Point2D pt2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                                
+                                Rectangle viewportBounds = map.getViewportBounds();
+                                int x1 = (int)(pt1.getX() - viewportBounds.getX());
+                                int y1 = (int)(pt1.getY() - viewportBounds.getY());
+                                int x2 = (int)(pt2.getX() - viewportBounds.getX());
+                                int y2 = (int)(pt2.getY() - viewportBounds.getY());
+                                
+                                g.drawLine(x1, y1, x2, y2);
+                            }
+                            
+                            // Draw arrow at midpoint for direction
+                            int midIdx = polyline.size() / 2;
+                            if (midIdx > 0 && midIdx < polyline.size()) {
+                                GeoPosition p1 = polyline.get(midIdx - 1);
+                                GeoPosition p2 = polyline.get(midIdx);
+                                
+                                Point2D pt1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                                Point2D pt2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                                
+                                Rectangle viewportBounds = map.getViewportBounds();
+                                int x1 = (int)(pt1.getX() - viewportBounds.getX());
+                                int y1 = (int)(pt1.getY() - viewportBounds.getY());
+                                int x2 = (int)(pt2.getX() - viewportBounds.getX());
+                                int y2 = (int)(pt2.getY() - viewportBounds.getY());
+                                
+                                if (road.isOneWay()) {
+                                    drawArrow(g, x1, y1, x2, y2, roadColor);
+                                } else {
+                                    drawArrow(g, x1, y1, x2, y2, roadColor);
+                                    drawArrow(g, x2, y2, x1, y1, roadColor);
+                                }
+                            }
+                        }
                     } else {
-                        // Draw double arrow for two-way roads
-                        drawArrow(g, x1, y1, x2, y2, roadColor);
-                        drawArrow(g, x2, y2, x1, y1, roadColor);
+                        // Fallback: Draw simple straight line (old behavior)
+                        GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
+                        GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
+                        
+                        Point2D startPoint = map.getTileFactory().geoToPixel(start, map.getZoom());
+                        Point2D endPoint = map.getTileFactory().geoToPixel(end, map.getZoom());
+                        
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        int x1 = (int)(startPoint.getX() - viewportBounds.getX());
+                        int y1 = (int)(startPoint.getY() - viewportBounds.getY());
+                        int x2 = (int)(endPoint.getX() - viewportBounds.getX());
+                        int y2 = (int)(endPoint.getY() - viewportBounds.getY());
+                        
+                        g.drawLine(x1, y1, x2, y2);
+                        
+                        // Draw arrows
+                        if (road.isOneWay()) {
+                            drawArrow(g, x1, y1, x2, y2, roadColor);
+                        } else {
+                            drawArrow(g, x1, y1, x2, y2, roadColor);
+                            drawArrow(g, x2, y2, x1, y1, roadColor);
+                        }
                     }
                     
                     // Highlight selected road
                     if (selectedRoad != null && selectedRoad.getRoadId() == road.getRoadId()) {
                         g.setColor(new Color(255, 255, 0, 150)); // Yellow highlight
                         g.setStroke(new BasicStroke(strokeWidth + 4));
-                        g.drawLine(x1, y1, x2, y2);
+                        
+                        if (road.getPolylinePoints() != null && !road.getPolylinePoints().isEmpty()) {
+                            List<GeoPosition> polyline = decodePolyline(road.getPolylinePoints());
+                            for (int i = 0; i < polyline.size() - 1; i++) {
+                                GeoPosition p1 = polyline.get(i);
+                                GeoPosition p2 = polyline.get(i + 1);
+                                
+                                Point2D pt1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                                Point2D pt2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                                
+                                Rectangle viewportBounds = map.getViewportBounds();
+                                int x1 = (int)(pt1.getX() - viewportBounds.getX());
+                                int y1 = (int)(pt1.getY() - viewportBounds.getY());
+                                int x2 = (int)(pt2.getX() - viewportBounds.getX());
+                                int y2 = (int)(pt2.getY() - viewportBounds.getY());
+                                
+                                g.drawLine(x1, y1, x2, y2);
+                            }
+                        } else {
+                            GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
+                            GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
+                            
+                            Point2D startPoint = map.getTileFactory().geoToPixel(start, map.getZoom());
+                            Point2D endPoint = map.getTileFactory().geoToPixel(end, map.getZoom());
+                            
+                            Rectangle viewportBounds = map.getViewportBounds();
+                            int x1 = (int)(startPoint.getX() - viewportBounds.getX());
+                            int y1 = (int)(startPoint.getY() - viewportBounds.getY());
+                            int x2 = (int)(endPoint.getX() - viewportBounds.getX());
+                            int y2 = (int)(endPoint.getY() - viewportBounds.getY());
+                            
+                            g.drawLine(x1, y1, x2, y2);
+                        }
                     }
                 }
             }
@@ -351,6 +482,51 @@ public class RoadMapPanel extends JPanel {
         
         mapViewer.setOverlayPainter(roadPainter);
         mapViewer.repaint();
+    }
+    
+    /**
+     * Decode Google Maps polyline
+     */
+    private List<GeoPosition> decodePolyline(String encoded) {
+        List<GeoPosition> poly = new ArrayList<>();
+        int index = 0;
+        int len = encoded.length();
+        int lat = 0;
+        int lng = 0;
+        
+        while (index < len) {
+            int b;
+            int shift = 0;
+            int result = 0;
+            
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            
+            int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+            
+            shift = 0;
+            result = 0;
+            
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            
+            int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+            
+            double latitude = lat / 1E5;
+            double longitude = lng / 1E5;
+            
+            poly.add(new GeoPosition(latitude, longitude));
+        }
+        
+        return poly;
     }
     
     /**
@@ -433,11 +609,185 @@ public class RoadMapPanel extends JPanel {
     }
     
     private void showAddRoadDialog() {
-        JOptionPane.showMessageDialog(this,
-            "Fitur tambah jalan akan segera ditambahkan.\n" +
-            "Untuk sementara, gunakan menu 'Jalan' di sidebar.",
-            "Info",
-            JOptionPane.INFORMATION_MESSAGE);
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+            "Tambah Jalan Baru", true);
+        dialog.setSize(500, 450);
+        dialog.setLocationRelativeTo(this);
+        
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        // Nama Jalan
+        gbc.gridx = 0; gbc.gridy = 0;
+        panel.add(new JLabel("Nama Jalan:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextField txtNama = new JTextField(30);
+        panel.add(txtNama, gbc);
+        
+        // Tipe Jalan
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
+        panel.add(new JLabel("Tipe Jalan:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JComboBox<Road.RoadType> cboType = new JComboBox<>(Road.RoadType.values());
+        panel.add(cboType, gbc);
+        
+        // One Way
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
+        panel.add(new JLabel("Satu Arah:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JCheckBox chkOneWay = new JCheckBox("Jalan satu arah");
+        panel.add(chkOneWay, gbc);
+        
+        // Start Coordinate Label
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 3;
+        JLabel lblStart = new JLabel("Koordinat Awal:");
+        lblStart.setFont(new Font("Arial", Font.BOLD, 12));
+        panel.add(lblStart, gbc);
+        
+        // Start Latitude
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
+        panel.add(new JLabel("  Latitude:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextField txtStartLat = new JTextField("3.5651");
+        panel.add(txtStartLat, gbc);
+        
+        // Start Longitude
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 1;
+        panel.add(new JLabel("  Longitude:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextField txtStartLng = new JTextField("98.6566");
+        panel.add(txtStartLng, gbc);
+        
+        // End Coordinate Label
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 3;
+        JLabel lblEnd = new JLabel("Koordinat Akhir:");
+        lblEnd.setFont(new Font("Arial", Font.BOLD, 12));
+        panel.add(lblEnd, gbc);
+        
+        // End Latitude
+        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 1;
+        panel.add(new JLabel("  Latitude:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextField txtEndLat = new JTextField("3.5670");
+        panel.add(txtEndLat, gbc);
+        
+        // End Longitude
+        gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 1;
+        panel.add(new JLabel("  Longitude:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextField txtEndLng = new JTextField("98.6580");
+        panel.add(txtEndLng, gbc);
+        
+        // Description
+        gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 1;
+        panel.add(new JLabel("Deskripsi:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextArea txtDesc = new JTextArea(2, 30);
+        txtDesc.setLineWrap(true);
+        panel.add(new JScrollPane(txtDesc), gbc);
+        
+        // Buttons
+        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 3;
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        
+        JButton btnSave = new JButton("Simpan");
+        btnSave.setBackground(new Color(76, 175, 80));
+        btnSave.setForeground(Color.WHITE);
+        btnSave.addActionListener(e -> {
+            try {
+                // Validasi input
+                String roadName = txtNama.getText().trim();
+                if (roadName.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog,
+                        "Nama jalan harus diisi!",
+                        "Validasi Error",
+                        JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                
+                Road road = new Road();
+                road.setRoadName(roadName);
+                road.setRoadType((Road.RoadType) cboType.getSelectedItem());
+                road.setStartLat(Double.parseDouble(txtStartLat.getText().trim()));
+                road.setStartLng(Double.parseDouble(txtStartLng.getText().trim()));
+                road.setEndLat(Double.parseDouble(txtEndLat.getText().trim()));
+                road.setEndLng(Double.parseDouble(txtEndLng.getText().trim()));
+                road.setOneWay(chkOneWay.isSelected());
+                road.setDescription(txtDesc.getText().trim());
+                
+                // Calculate distance using Haversine formula
+                double distance = calculateDistance(
+                    road.getStartLat(), road.getStartLng(),
+                    road.getEndLat(), road.getEndLng()
+                );
+                road.setDistance(distance);
+                
+                // Set default values untuk field baru (Google Maps akan diisi kemudian)
+                road.setPolylinePoints(null);
+                road.setGoogleRoadName(null);
+                road.setRoadSegments(null);
+                road.setLastGmapsUpdate(null);
+                
+                if (roadDAO.insertRoad(road)) {
+                    JOptionPane.showMessageDialog(dialog,
+                        "✅ Jalan berhasil ditambahkan!\n\n" +
+                        "Tip: Pilih jalan ini dan klik 'Fetch dari Google Maps'\n" +
+                        "untuk mendapatkan polyline yang mengikuti jalan sebenarnya.",
+                        "Sukses",
+                        JOptionPane.INFORMATION_MESSAGE);
+                    dialog.dispose();
+                    loadRoads();
+                } else {
+                    JOptionPane.showMessageDialog(dialog,
+                        "Gagal menambahkan jalan ke database.\n" +
+                        "Periksa log untuk detail error.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog,
+                    "Format koordinat tidak valid!\n\n" +
+                    "Gunakan format angka desimal, contoh:\n" +
+                    "Latitude: 3.5651\n" +
+                    "Longitude: 98.6566",
+                    "Format Error",
+                    JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog,
+                    "Error tidak terduga: " + ex.getMessage() + "\n\n" +
+                    "Pastikan semua field diisi dengan benar.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+                ex.printStackTrace();
+            }
+        });
+        
+        JButton btnCancel = new JButton("Batal");
+        btnCancel.addActionListener(e -> dialog.dispose());
+        
+        btnPanel.add(btnSave);
+        btnPanel.add(btnCancel);
+        panel.add(btnPanel, gbc);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+    
+    /**
+     * Calculate distance between two coordinates using Haversine formula
+     */
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371000; // Earth radius in meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c; // Distance in meters
     }
     
     private void editSelectedRoad() {
@@ -593,5 +943,124 @@ public class RoadMapPanel extends JPanel {
                     JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
+    
+    /**
+     * Fetch Google Maps data untuk jalan yang dipilih
+     * Mengambil polyline dan nama jalan dari Google Maps API
+     */
+    private void fetchGoogleMapsData() {
+        int selectedRow = roadsTable.getSelectedRow();
+        if (selectedRow < 0 && selectedRoad == null) {
+            JOptionPane.showMessageDialog(this,
+                "Pilih jalan terlebih dahulu untuk di-fetch dari Google Maps",
+                "Info",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        int roadId;
+        Road road;
+        
+        if (selectedRow >= 0) {
+            roadId = (int) tableModel.getValueAt(selectedRow, 0);
+            road = roadDAO.getRoadById(roadId);
+        } else {
+            road = selectedRoad;
+        }
+        
+        if (road == null) {
+            JOptionPane.showMessageDialog(this,
+                "Jalan tidak ditemukan",
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Show progress dialog
+        JDialog progressDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
+            "Mengambil data dari Google Maps...", true);
+        progressDialog.setSize(400, 120);
+        progressDialog.setLocationRelativeTo(this);
+        progressDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        JLabel lblStatus = new JLabel("Menghubungi Google Maps API...");
+        lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(lblStatus, BorderLayout.CENTER);
+        
+        JProgressBar progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        panel.add(progressBar, BorderLayout.SOUTH);
+        
+        progressDialog.add(panel);
+        
+        // Fetch in background thread
+        SwingWorker<GoogleMapsRoadService.RoadInfo, Void> worker = new SwingWorker<GoogleMapsRoadService.RoadInfo, Void>() {
+            @Override
+            protected GoogleMapsRoadService.RoadInfo doInBackground() throws Exception {
+                return roadService.getRoadInfo(
+                    road.getStartLat(), road.getStartLng(),
+                    road.getEndLat(), road.getEndLng()
+                );
+            }
+            
+            @Override
+            protected void done() {
+                try {
+                    GoogleMapsRoadService.RoadInfo roadInfo = get();
+                    
+                    if (roadInfo.polyline.isEmpty()) {
+                        JOptionPane.showMessageDialog(RoadMapPanel.this,
+                            "Tidak dapat mengambil data dari Google Maps.\n" +
+                            "Mungkin koordinat tidak valid atau tidak ada jalan di lokasi tersebut.",
+                            "Warning",
+                            JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        // Update road dengan data dari Google Maps
+                        road.setPolylinePoints(roadInfo.encodedPolyline);
+                        road.setGoogleRoadName(roadInfo.roadName);
+                        road.setDistance(roadInfo.distanceKm * 1000); // Convert to meters
+                        road.setLastGmapsUpdate(new java.sql.Timestamp(System.currentTimeMillis()));
+                        
+                        if (roadDAO.updateRoad(road)) {
+                            JOptionPane.showMessageDialog(RoadMapPanel.this,
+                                String.format(
+                                    "✅ Berhasil mengambil data dari Google Maps!\n\n" +
+                                    "Nama Jalan: %s\n" +
+                                    "Jarak: %.2f km\n" +
+                                    "Polyline Points: %d titik\n\n" +
+                                    "Data disimpan ke database.",
+                                    roadInfo.roadName.isEmpty() ? "(tidak ditemukan)" : roadInfo.roadName,
+                                    roadInfo.distanceKm,
+                                    roadInfo.polyline.size()
+                                ),
+                                "Sukses",
+                                JOptionPane.INFORMATION_MESSAGE);
+                            
+                            loadRoads(); // Refresh display
+                        } else {
+                            JOptionPane.showMessageDialog(RoadMapPanel.this,
+                                "Gagal menyimpan data ke database",
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(RoadMapPanel.this,
+                        "Error: " + e.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    progressDialog.dispose();
+                }
+            }
+        };
+        
+        worker.execute();
+        progressDialog.setVisible(true); // Blocks until worker calls dispose()
     }
 }

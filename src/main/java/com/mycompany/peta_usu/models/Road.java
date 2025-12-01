@@ -16,6 +16,10 @@ public class Road {
     private boolean isOneWay;
     private double distance;
     private String description;
+    private String polylinePoints; // Encoded polyline from Google Maps
+    private String googleRoadName; // Road name from Google Maps API (e.g., "Jl. Alumni")
+    private String roadSegments; // JSON array of road segments
+    private Timestamp lastGmapsUpdate; // Last Google Maps data fetch
     private Timestamp createdAt;
     private Timestamp updatedAt;
     
@@ -89,6 +93,18 @@ public class Road {
     
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    
+    public String getPolylinePoints() { return polylinePoints; }
+    public void setPolylinePoints(String polylinePoints) { this.polylinePoints = polylinePoints; }
+    
+    public String getGoogleRoadName() { return googleRoadName; }
+    public void setGoogleRoadName(String googleRoadName) { this.googleRoadName = googleRoadName; }
+    
+    public String getRoadSegments() { return roadSegments; }
+    public void setRoadSegments(String roadSegments) { this.roadSegments = roadSegments; }
+    
+    public Timestamp getLastGmapsUpdate() { return lastGmapsUpdate; }
+    public void setLastGmapsUpdate(Timestamp lastGmapsUpdate) { this.lastGmapsUpdate = lastGmapsUpdate; }
     
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

@@ -11,7 +11,6 @@ import java.awt.geom.*;
 import java.sql.Date;
 import java.util.List;
 import org.jxmapviewer.JXMapViewer;
-import org.jxmapviewer.OSMTileFactoryInfo;
 import org.jxmapviewer.input.PanMouseInputListener;
 import org.jxmapviewer.input.ZoomMouseWheelListenerCursor;
 import org.jxmapviewer.painter.Painter;
@@ -86,9 +85,17 @@ public class RoadClosurePanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Peta Jalan Tertutup"));
         
-        // Create map viewer
-        TileFactoryInfo info = new OSMTileFactoryInfo();
+        // Create map viewer with Google Maps
+        TileFactoryInfo info = new TileFactoryInfo(0, 17, 17, 256, true, true,
+                "http://mt0.google.com/vt/lyrs=m", "x", "y", "z") {
+            @Override
+            public String getTileUrl(int x, int y, int zoom) {
+                zoom = this.getTotalMapZoom() - zoom;
+                return String.format("https://mt0.google.com/vt/lyrs=m&x=%d&y=%d&z=%d", x, y, zoom);
+            }
+        };
         DefaultTileFactory tileFactory = new DefaultTileFactory(info);
+        tileFactory.setThreadPoolSize(8);
         
         mapViewer = new JXMapViewer();
         mapViewer.setTileFactory(tileFactory);
