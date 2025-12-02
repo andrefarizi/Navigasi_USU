@@ -37,7 +37,7 @@ public class PETA_USU {
     private static void showWelcomeScreen() {
         JFrame welcomeFrame = new JFrame("PetaUSU - Navigasi Kampus USU");
         welcomeFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        welcomeFrame.setSize(600, 450);
+        welcomeFrame.setSize(600, 480);
         welcomeFrame.setLocationRelativeTo(null);
         welcomeFrame.setResizable(false);
         
@@ -156,16 +156,17 @@ public class PETA_USU {
         });
         
         panel.add(adminButton);
-        panel.add(Box.createVerticalStrut(35));
+        panel.add(Box.createVerticalStrut(25));
         
-        // Info label with better styling
-        JLabel infoLabel = new JLabel("<html><center>" +
+        // Info label with better styling and proper spacing
+        JLabel infoLabel = new JLabel("<html><div style='text-align: center; line-height: 1.5;'>" +
             "👥 <b>User</b> dapat langsung melihat peta<br>" +
-            "🔑 <b>Admin</b> perlu login untuk akses panel admin" +
-            "</center></html>");
-        infoLabel.setFont(new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 12));
-        infoLabel.setForeground(new java.awt.Color(230, 255, 230));
+            "🔑 <b>Admin</b> perlu login untuk akses panel" +
+            "</div></html>");
+        infoLabel.setFont(new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 13));
+        infoLabel.setForeground(new java.awt.Color(240, 255, 240));
         infoLabel.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+        infoLabel.setMaximumSize(new java.awt.Dimension(400, 60));
         panel.add(infoLabel);
         
         welcomeFrame.add(panel);

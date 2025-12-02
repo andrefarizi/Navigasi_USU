@@ -709,23 +709,23 @@ public class MapFrame extends javax.swing.JFrame {
     }
     
     private void addLegendItem(JPanel panel, String icon, String text, Color color) {
-        JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         item.setBackground(Color.WHITE);
-        item.setMaximumSize(new Dimension(230, 30));
+        item.setMaximumSize(new Dimension(250, 35));
+        item.setPreferredSize(new Dimension(250, 30));
 
-        JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
-
-        JLabel textLabel = new JLabel(text);
-        textLabel.setFont(new Font("Times New Roman", Font.PLAIN, 13));
-
+        // Color box sebagai icon visual
         JPanel colorBox = new JPanel();
         colorBox.setBackground(color);
-        colorBox.setPreferredSize(new Dimension(12, 12));
-        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
+        colorBox.setPreferredSize(new Dimension(16, 16));
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 2));
+
+        // Text dengan font yang jelas dan NAMA LENGKAP
+        JLabel textLabel = new JLabel(text);
+        textLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        textLabel.setForeground(new Color(51, 51, 51));
 
         item.add(colorBox);
-        item.add(iconLabel);
         item.add(textLabel);
         panel.add(item);
     }
@@ -740,46 +740,55 @@ public class MapFrame extends javax.swing.JFrame {
             legendPanel.removeAll();
             
             try {
-                // Map untuk menyimpan unique marker types
-                java.util.Map<String, String> legendMap = new java.util.LinkedHashMap<>();
+                // Tidak perlu map, langsung render dari markers yang sudah unique
+                java.util.Set<String> addedTypes = new java.util.HashSet<>();
                 
-                // Ambil marker dari database
+                // Ambil marker dari database dan tampilkan icon + nama pendek
                 for (Marker marker : markers) {
-                    String markerName = marker.getMarkerName(); // Gunakan nama marker, bukan type
-                    String iconName = marker.getIconName();
+                    String markerType = marker.getMarkerType();
                     
-                    // Gunakan iconName langsung jika ada (emoji), atau extract dari iconPath
-                    String icon = "📍"; // Default
-                    if (iconName != null && !iconName.isEmpty()) {
-                        icon = iconName;
-                    } else {
-                        // Fallback ke iconPath
-                        String iconPath = marker.getIconPath();
-                        if (iconPath != null && !iconPath.isEmpty()) {
-                            if (iconPath.contains("stadium")) icon = "⚽";
-                            else if (iconPath.contains("fakultas")) icon = "🎓";
-                            else if (iconPath.contains("building") || iconPath.contains("gedung")) icon = "🏢";
-                            else if (iconPath.contains("apartment")) icon = "🏢";
-                            else if (iconPath.contains("masjid")) icon = "🕌";
-                            else if (iconPath.contains("musholla")) icon = "🕌";
-                            else if (iconPath.contains("perpustakaan")) icon = "📚";
+                    // Skip jika type sudah ditambahkan (unique types only)
+                    if (markerType != null && !addedTypes.contains(markerType)) {
+                        addedTypes.add(markerType);
+                        
+                        String iconName = marker.getIconName();
+                        
+                        // Gunakan iconName jika ada (emoji), atau extract dari iconPath
+                        String icon = "📍"; // Default
+                        if (iconName != null && !iconName.isEmpty()) {
+                            icon = iconName;
+                        } else {
+                            // Fallback ke iconPath
+                            String iconPath = marker.getIconPath();
+                            if (iconPath != null && !iconPath.isEmpty()) {
+                                if (iconPath.contains("stadium")) icon = "⚽";
+                                else if (iconPath.contains("fakultas")) icon = "🎓";
+                                else if (iconPath.contains("building") || iconPath.contains("gedung")) icon = "🏢";
+                                else if (iconPath.contains("apartment")) icon = "🏘️";
+                                else if (iconPath.contains("masjid")) icon = "🕌";
+                                else if (iconPath.contains("musholla")) icon = "🕌";
+                                else if (iconPath.contains("perpustakaan")) icon = "📚";
+                                else if (iconPath.contains("landmark")) icon = "🏛️";
+                                else if (iconPath.contains("eiffel")) icon = "🗼";
+                            }
                         }
-                    }
-                    
-                    // Tambahkan setiap marker ke legenda (gunakan nama marker)
-                    if (markerName != null && !markerName.isEmpty()) {
-                        legendMap.put(markerName, icon);
+                        
+                        // Gunakan markerName yang lebih pendek, bukan markerType
+                        String displayName = marker.getMarkerName();
+                        if (displayName == null || displayName.isEmpty()) {
+                            displayName = formatMarkerTypeName(markerType);
+                        }
+                        
+                        // Tampilkan nama LENGKAP, tidak dipotong
+                        // (panel sudah cukup lebar untuk menampung)
+                        
+                        addLegendItem(legendPanel, icon, displayName, PRIMARY_GREEN);
                     }
                 }
                 
                 // Jika tidak ada marker dari database, gunakan default
-                if (legendMap.isEmpty()) {
-                    legendMap.put("Lokasi", "📍");
-                }
-
-                // Render legenda
-                for (var entry : legendMap.entrySet()) {
-                    addLegendItem(legendPanel, entry.getValue(), entry.getKey(), PRIMARY_GREEN);
+                if (addedTypes.isEmpty()) {
+                    addLegendItem(legendPanel, "📍", "Lokasi", PRIMARY_GREEN);
                 }
             } catch (Exception e) {
                 logger.warning("Gagal refresh legenda: " + e.getMessage());
@@ -789,6 +798,28 @@ public class MapFrame extends javax.swing.JFrame {
             legendPanel.revalidate();
             legendPanel.repaint();
         });
+    }
+    
+    /**
+     * Format marker type name untuk tampilan yang rapi
+     */
+    private String formatMarkerTypeName(String markerType) {
+        if (markerType == null || markerType.isEmpty()) {
+            return "Lokasi";
+        }
+        
+        // Remove underscore dan ambil kata pertama yang meaningful
+        String[] parts = markerType.split("[_-]");
+        if (parts.length > 0) {
+            String firstPart = parts[0];
+            // Capitalize first letter
+            if (firstPart.length() > 0) {
+                return firstPart.substring(0, 1).toUpperCase() + 
+                       firstPart.substring(1).toLowerCase();
+            }
+        }
+        
+        return markerType;
     }
     
     /**

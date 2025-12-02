@@ -35,6 +35,7 @@ com\mycompany\peta_usu\ui\RoomManagementPanel$2.class
 com\mycompany\peta_usu\utils\GoogleMapsHelper.class
 com\mycompany\peta_usu\config\DatabaseConnection.class
 com\mycompany\peta_usu\ui\AdminMapPanel$1.class
+com\mycompany\peta_usu\ui\ReportsPanel.class
 com\mycompany\peta_usu\services\DirectionsService.class
 com\mycompany\peta_usu\LoginFrame$2.class
 com\mycompany\peta_usu\services\DirectionsService$DirectionsResult.class
@@ -54,6 +55,7 @@ com\mycompany\peta_usu\ui\RoadMapPanel$4.class
 com\mycompany\peta_usu\services\PathfindingService$RouteResult.class
 com\mycompany\peta_usu\ui\RoadMapPanel.class
 com\mycompany\peta_usu\LoginFrame$1.class
+com\mycompany\peta_usu\ui\ReportsPanel$1.class
 com\mycompany\peta_usu\MapFrame$CustomWaypoint.class
 com\mycompany\peta_usu\models\Report$ReportType.class
 com\mycompany\peta_usu\ui\RoadMapPanel$1.class
