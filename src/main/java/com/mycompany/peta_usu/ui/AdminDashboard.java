@@ -1,5 +1,6 @@
 package com.mycompany.peta_usu.ui;
 
+import com.mycompany.peta_usu.PETA_USU;
 import com.mycompany.peta_usu.LoginFrame;
 import com.mycompany.peta_usu.dao.BuildingDAO;
 import com.mycompany.peta_usu.middleware.AuthMiddleware;
@@ -230,17 +231,16 @@ public class AdminDashboard extends JFrame {
     
     private void logout() {
         int confirm = JOptionPane.showConfirmDialog(this,
-            "Yakin ingin logout?",
-            "Konfirmasi Logout",
+            "Yakin ingin kembali ke halaman utama?",
+            "Konfirmasi Keluar",
             JOptionPane.YES_NO_OPTION);
         
         if (confirm == JOptionPane.YES_OPTION) {
             AuthMiddleware.logout();
             this.dispose();
             
-            java.awt.EventQueue.invokeLater(() -> {
-                new LoginFrame().setVisible(true);
-            });
+            // Return to welcome screen (halaman hijau)
+            PETA_USU.main(new String[]{});
         }
     }
     

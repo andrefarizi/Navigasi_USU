@@ -123,7 +123,8 @@ public class LoginFrame extends javax.swing.JFrame {
         backButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         backButton.addActionListener(e -> {
             dispose();
-            System.exit(0); // Keluar aplikasi
+            // Kembali ke halaman hijau (welcome screen)
+            PETA_USU.main(new String[]{});
         });
 
         loginPanel.add(titleLabel);
