@@ -57,6 +57,7 @@ public class AdminDashboard extends JFrame {
         contentPanel.add(homePanel, "HOME");
         
         // CRUD Panels
+        contentPanel.add(new ReportsPanel(), "REPORTS");
         contentPanel.add(new AdminMapPanel(AuthMiddleware.getCurrentUser().getUserId()), "MARKERS");
         contentPanel.add(new RoadMapPanel(AuthMiddleware.getCurrentUser().getUserId()), "ROADMAP");
         contentPanel.add(new RoadClosurePanel(AuthMiddleware.getCurrentUser().getUserId()), "CLOSURES");
@@ -80,6 +81,7 @@ public class AdminDashboard extends JFrame {
         
         // Menu Items
         addMenuItem("🏠 Beranda", "HOME");
+        addMenuItem("📬 Laporan User", "REPORTS");
         addMenuItem("📍 Marker Peta", "MARKERS");
         addMenuItem("🛣️ Peta Jalan", "ROADMAP");
         addMenuItem("🚧 Penutupan Jalan", "CLOSURES");

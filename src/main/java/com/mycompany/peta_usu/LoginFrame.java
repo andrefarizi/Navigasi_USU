@@ -169,17 +169,15 @@ public class LoginFrame extends javax.swing.JFrame {
         // Gunakan middleware untuk autentikasi
         if (AuthMiddleware.authenticateAdmin(username, password)) {
             try {
-                JOptionPane.showMessageDialog(this,
-                    "Login Berhasil!\n\nSelamat datang, " + AuthMiddleware.getCurrentUser().getName() + "!",
-                    "Login Successful",
-                    JOptionPane.INFORMATION_MESSAGE);
-                
-                // Sukses login sebagai admin, buka AdminDashboard
-                com.mycompany.peta_usu.ui.AdminDashboard adminFrame = new com.mycompany.peta_usu.ui.AdminDashboard();
-                adminFrame.setVisible(true);
-                this.dispose();
-                    
-            } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                "Login Berhasil!\n\nSelamat datang, " + AuthMiddleware.getCurrentUser().getName() + "!",
+                "Login Successful",
+                JOptionPane.INFORMATION_MESSAGE);
+            
+            // Sukses login sebagai admin, buka AdminDashboard
+            com.mycompany.peta_usu.ui.AdminDashboard adminFrame = new com.mycompany.peta_usu.ui.AdminDashboard();
+            adminFrame.setVisible(true);
+            this.dispose();            } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this,
                     "Error membuka admin panel: " + ex.getMessage(),
                     "Error",

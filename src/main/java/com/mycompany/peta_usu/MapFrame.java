@@ -8,10 +8,12 @@ import com.mycompany.peta_usu.dao.BuildingDAO;
 import com.mycompany.peta_usu.dao.MarkerDAO;
 import com.mycompany.peta_usu.dao.RoadDAO;
 import com.mycompany.peta_usu.dao.RoadClosureDAO;
+import com.mycompany.peta_usu.dao.ReportDAO;
 import com.mycompany.peta_usu.models.Building;
 import com.mycompany.peta_usu.models.Marker;
 import com.mycompany.peta_usu.models.Road;
 import com.mycompany.peta_usu.models.RoadClosure;
+import com.mycompany.peta_usu.models.Report;
 import com.mycompany.peta_usu.ui.BuildingInfoDialog;
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -87,6 +89,7 @@ public class MapFrame extends javax.swing.JFrame {
     private List<Road> roads;
     private List<RoadClosure> activeClosures;
     private Map<Integer, RoadClosure> closureMap;
+    private JPanel legendPanel; // Panel legenda yang akan di-refresh
     
     private static final Color PRIMARY_GREEN = new Color(0x388860);
     private static final Color LIGHT_GREEN = new Color(0x4CAF6E);
@@ -130,6 +133,7 @@ public class MapFrame extends javax.swing.JFrame {
                 hideLoadingDialog();
                 updateWaypoints(); // Render icons after loading complete
                 updateLocationComboBoxes(); // Populate combo boxes with loaded data
+                refreshLegend(); // Refresh legend setelah markers dimuat
             }
         };
         worker.execute();
@@ -295,6 +299,14 @@ public class MapFrame extends javax.swing.JFrame {
         centerContainer.add(mapPanel, BorderLayout.CENTER);
         
         mainPanel.add(centerContainer, BorderLayout.CENTER);
+        
+        // Add control panel with report button on the right
+        JPanel controlPanel = createControlPanel();
+        JScrollPane controlScrollPane = new JScrollPane(controlPanel);
+        controlScrollPane.setBorder(null);
+        controlScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        controlScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        mainPanel.add(controlScrollPane, BorderLayout.EAST);
 
         setContentPane(mainPanel);
         
@@ -611,49 +623,30 @@ public class MapFrame extends javax.swing.JFrame {
         panel.add(legendLabel);
         panel.add(Box.createRigidArea(new Dimension(0, 15)));
 
-        JPanel legendPanel = new JPanel();
+        legendPanel = new JPanel(); // Gunakan field class, bukan variabel lokal
         legendPanel.setLayout(new BoxLayout(legendPanel, BoxLayout.Y_AXIS));
         legendPanel.setBackground(Color.WHITE);
 
-        try {
-            File file = new File("resources/kampus_usu.geojson");
-            if (file.exists()) {
-                String content = new String(Files.readAllBytes(file.toPath()));
-                JSONObject geoJson = new JSONObject(content);
-                JSONArray features = geoJson.getJSONArray("features");
-
-                java.util.Map<String, String> legendMap = new java.util.LinkedHashMap<>();
-
-                for (int i = 0; i < features.length(); i++) {
-                    JSONObject props = features.getJSONObject(i).getJSONObject("properties");
-                    String type = props.optString("type", "Lainnya");
-                    String icon = props.optString("icon", "📍");
-                    legendMap.putIfAbsent(type, icon);
-                }
-
-                for (var entry : legendMap.entrySet()) {
-                    addLegendItem(legendPanel, entry.getValue(), entry.getKey(), PRIMARY_GREEN);
-                }
-            }
-        } catch (Exception e) {
-            logger.warning("Gagal memuat legenda dinamis: " + e.getMessage());
-        }
+        // Legenda akan di-load oleh refreshLegend() setelah markers dimuat
+        // Tampilkan loading placeholder
+        addLegendItem(legendPanel, "⏳", "Memuat...", PRIMARY_GREEN);
 
         panel.add(legendPanel);
-        panel.add(Box.createVerticalGlue());
-
-        JTextArea info = new JTextArea("Tips:\n• Klik icon untuk detail\n• Scroll untuk zoom\n• Drag untuk geser peta");
-        info.setFont(new Font("Times New Roman", Font.PLAIN, 11));
-        info.setEditable(false);
-        info.setLineWrap(true);
-        info.setWrapStyleWord(true);
-        info.setBackground(new Color(248, 249, 250));
-        info.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(PRIMARY_GREEN, 1),
-            BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-
-        panel.add(info);
+        panel.add(Box.createRigidArea(new Dimension(0, 15)));
+        
+        // Tombol Lapor Kondisi Jalan
+        JButton btnReport = new JButton("📢 Lapor Kondisi Jalan");
+        btnReport.setFont(new Font("Times New Roman", Font.BOLD, 12));
+        btnReport.setBackground(new Color(255, 152, 0));
+        btnReport.setForeground(Color.WHITE);
+        btnReport.setFocusPainted(false);
+        btnReport.setBorderPainted(false);
+        btnReport.setOpaque(true);
+        btnReport.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        btnReport.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnReport.addActionListener(e -> showReportDialog());
+        panel.add(btnReport);
+        
         return panel;
     }
     
@@ -735,6 +728,67 @@ public class MapFrame extends javax.swing.JFrame {
         item.add(iconLabel);
         item.add(textLabel);
         panel.add(item);
+    }
+    
+    /**
+     * Refresh legenda panel dengan data marker dari database
+     */
+    private void refreshLegend() {
+        if (legendPanel == null) return;
+        
+        SwingUtilities.invokeLater(() -> {
+            legendPanel.removeAll();
+            
+            try {
+                // Map untuk menyimpan unique marker types
+                java.util.Map<String, String> legendMap = new java.util.LinkedHashMap<>();
+                
+                // Ambil marker dari database
+                for (Marker marker : markers) {
+                    String markerName = marker.getMarkerName(); // Gunakan nama marker, bukan type
+                    String iconName = marker.getIconName();
+                    
+                    // Gunakan iconName langsung jika ada (emoji), atau extract dari iconPath
+                    String icon = "📍"; // Default
+                    if (iconName != null && !iconName.isEmpty()) {
+                        icon = iconName;
+                    } else {
+                        // Fallback ke iconPath
+                        String iconPath = marker.getIconPath();
+                        if (iconPath != null && !iconPath.isEmpty()) {
+                            if (iconPath.contains("stadium")) icon = "⚽";
+                            else if (iconPath.contains("fakultas")) icon = "🎓";
+                            else if (iconPath.contains("building") || iconPath.contains("gedung")) icon = "🏢";
+                            else if (iconPath.contains("apartment")) icon = "🏢";
+                            else if (iconPath.contains("masjid")) icon = "🕌";
+                            else if (iconPath.contains("musholla")) icon = "🕌";
+                            else if (iconPath.contains("perpustakaan")) icon = "📚";
+                        }
+                    }
+                    
+                    // Tambahkan setiap marker ke legenda (gunakan nama marker)
+                    if (markerName != null && !markerName.isEmpty()) {
+                        legendMap.put(markerName, icon);
+                    }
+                }
+                
+                // Jika tidak ada marker dari database, gunakan default
+                if (legendMap.isEmpty()) {
+                    legendMap.put("Lokasi", "📍");
+                }
+
+                // Render legenda
+                for (var entry : legendMap.entrySet()) {
+                    addLegendItem(legendPanel, entry.getValue(), entry.getKey(), PRIMARY_GREEN);
+                }
+            } catch (Exception e) {
+                logger.warning("Gagal refresh legenda: " + e.getMessage());
+                addLegendItem(legendPanel, "📍", "Lokasi", PRIMARY_GREEN);
+            }
+            
+            legendPanel.revalidate();
+            legendPanel.repaint();
+        });
     }
     
     /**
@@ -1232,24 +1286,33 @@ public class MapFrame extends javax.swing.JFrame {
                 // Draw all roads from database (background layer)
                 if (roads != null && !roads.isEmpty()) {
                     for (Road road : roads) {
-                        // Determine color based on closure status
+                        // Determine color based on road type and closure status
                         Color roadColor = Color.BLACK; // Default: normal road
                         int strokeWidth = 5; // Increased for better visibility
                         boolean isDashed = false;
                         
-                        // PRIORITY: Check closure status first (red for closed roads)
-                        if (closureMap.containsKey(road.getRoadId())) {
+                        // PRIORITY 1: Check RoadType.CLOSED first (highest priority)
+                        if (road.getRoadType() == Road.RoadType.CLOSED) {
+                            roadColor = new Color(220, 20, 60); // Red - jalan tertutup
+                            strokeWidth = 6; // Lebih tebal untuk jalan tertutup
+                        }
+                        // PRIORITY 2: Check closure status from RoadClosure table
+                        else if (closureMap.containsKey(road.getRoadId())) {
                             RoadClosure closure = closureMap.get(road.getRoadId());
                             if (closure.getClosureType() == RoadClosure.ClosureType.PERMANENT) {
                                 roadColor = new Color(220, 20, 60); // Red - jalan tertutup permanen
-                                strokeWidth = 6; // Lebih tebal untuk jalan tertutup
+                                strokeWidth = 6;
                             } else if (closure.getClosureType() == RoadClosure.ClosureType.TEMPORARY) {
                                 roadColor = new Color(255, 140, 0); // Orange - jalan tertutup sementara
                                 strokeWidth = 6;
                             }
-                        } else if (road.isOneWay()) {
-                            // Only apply one-way styling if not closed
+                        }
+                        // PRIORITY 3: Check if ONE_WAY or TWO_WAY
+                        else if (road.getRoadType() == Road.RoadType.ONE_WAY) {
                             roadColor = new Color(0, 100, 200); // Blue for one-way
+                            isDashed = true;
+                        } else if (road.getRoadType() == Road.RoadType.TWO_WAY) {
+                            roadColor = new Color(34, 139, 34); // Green for two-way
                             isDashed = true;
                         }
                         
@@ -1688,6 +1751,166 @@ public class MapFrame extends javax.swing.JFrame {
         logger.log(java.util.logging.Level.SEVERE, null, ex);
     }
         java.awt.EventQueue.invokeLater(() -> new MapFrame("2205181001").setVisible(true));
+    }
+    
+    /**
+     * Show dialog for reporting road conditions
+     */
+    private void showReportDialog() {
+        JDialog reportDialog = new JDialog(this, "📢 Lapor Kondisi Jalan", true);
+        reportDialog.setSize(500, 550);
+        reportDialog.setLocationRelativeTo(this);
+        reportDialog.setLayout(new BorderLayout(10, 10));
+        
+        // Main panel
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        mainPanel.setBackground(Color.WHITE);
+        
+        // Title
+        JLabel titleLabel = new JLabel("Laporan Kondisi Jalan");
+        titleLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
+        titleLabel.setForeground(PRIMARY_GREEN);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(titleLabel);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        
+        JLabel subtitleLabel = new JLabel("Bantu kami menjaga keamanan dan kenyamanan kampus");
+        subtitleLabel.setFont(new Font("Times New Roman", Font.PLAIN, 12));
+        subtitleLabel.setForeground(Color.GRAY);
+        subtitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(subtitleLabel);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        
+        // Location field
+        JLabel lblLocation = new JLabel("Lokasi:");
+        lblLocation.setFont(MAIN_FONT);
+        lblLocation.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(lblLocation);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        
+        JTextField txtLocation = new JTextField();
+        txtLocation.setFont(MAIN_FONT);
+        txtLocation.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        txtLocation.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(txtLocation);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        
+        // Coordinates (auto-filled from current map center)
+        GeoPosition center = (mapViewer != null) ? mapViewer.getCenterPosition() 
+            : new GeoPosition(3.5688, 98.6566); // Default USU coordinates
+        JLabel lblCoords = new JLabel(String.format("Koordinat: %.6f, %.6f", 
+            center.getLatitude(), center.getLongitude()));
+        lblCoords.setFont(new Font("Times New Roman", Font.ITALIC, 11));
+        lblCoords.setForeground(Color.GRAY);
+        lblCoords.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(lblCoords);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        
+        // Report type
+        JLabel lblType = new JLabel("Tipe Laporan:");
+        lblType.setFont(MAIN_FONT);
+        lblType.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(lblType);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        
+        JComboBox<Report.ReportType> cboType = new JComboBox<>(Report.ReportType.values());
+        cboType.setFont(MAIN_FONT);
+        cboType.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        cboType.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(cboType);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 15)));
+        
+        // Description
+        JLabel lblDesc = new JLabel("Deskripsi:");
+        lblDesc.setFont(MAIN_FONT);
+        lblDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+        mainPanel.add(lblDesc);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        
+        JTextArea txtDescription = new JTextArea(5, 20);
+        txtDescription.setFont(MAIN_FONT);
+        txtDescription.setLineWrap(true);
+        txtDescription.setWrapStyleWord(true);
+        txtDescription.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+        JScrollPane scrollDesc = new JScrollPane(txtDescription);
+        scrollDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+        scrollDesc.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+        mainPanel.add(scrollDesc);
+        mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
+        
+        // Buttons panel
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btnPanel.setBackground(Color.WHITE);
+        btnPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        
+        JButton btnCancel = new JButton("Batal");
+        btnCancel.setFont(MAIN_FONT);
+        btnCancel.addActionListener(e -> reportDialog.dispose());
+        
+        JButton btnSubmit = new JButton("Kirim Laporan");
+        btnSubmit.setFont(new Font("Times New Roman", Font.BOLD, 12));
+        btnSubmit.setBackground(PRIMARY_GREEN);
+        btnSubmit.setForeground(Color.WHITE);
+        btnSubmit.setFocusPainted(false);
+        btnSubmit.addActionListener(e -> {
+            String location = txtLocation.getText().trim();
+            String description = txtDescription.getText().trim();
+            
+            if (location.isEmpty()) {
+                JOptionPane.showMessageDialog(reportDialog, 
+                    "Lokasi tidak boleh kosong!", 
+                    "Validasi", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            if (description.isEmpty()) {
+                JOptionPane.showMessageDialog(reportDialog, 
+                    "Deskripsi tidak boleh kosong!", 
+                    "Validasi", 
+                    JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            // Create report object
+            Report report = new Report();
+            report.setUserNim("GUEST");
+            report.setUserName("Guest User");
+            report.setLocation(location);
+            report.setLatitude(center.getLatitude());
+            report.setLongitude(center.getLongitude());
+            report.setDescription(description);
+            report.setReportType((Report.ReportType) cboType.getSelectedItem());
+            
+            // Save to database
+            ReportDAO reportDAO = new ReportDAO();
+            boolean success = reportDAO.createReport(report);
+            
+            if (success) {
+                JOptionPane.showMessageDialog(reportDialog,
+                    "Terima kasih! Laporan Anda telah diterima dan akan segera ditindaklanjuti.",
+                    "Laporan Terkirim",
+                    JOptionPane.INFORMATION_MESSAGE);
+                reportDialog.dispose();
+            } else {
+                JOptionPane.showMessageDialog(reportDialog,
+                    "Gagal mengirim laporan. Silakan coba lagi.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        btnPanel.add(btnCancel);
+        btnPanel.add(btnSubmit);
+        mainPanel.add(btnPanel);
+        
+        reportDialog.add(mainPanel, BorderLayout.CENTER);
+        reportDialog.setVisible(true);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
