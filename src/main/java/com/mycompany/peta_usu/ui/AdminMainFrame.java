@@ -35,18 +35,22 @@ public class AdminMainFrame extends JFrame {
         // Tabbed pane untuk berbagai management panels
         tabbedPane = new JTabbedPane();
         
-        // Add tabs
-        tabbedPane.addTab("Map Markers", createIcon("📍"), 
-            new AdminMapPanel(adminUserId), 
-            "Manage building markers and icons");
-        
-        tabbedPane.addTab("Road Closures", createIcon("🚧"), 
-            new RoadClosurePanel(adminUserId), 
-            "Manage road closures and one-way streets");
+        // Add tabs - Laporan User di posisi pertama
+        tabbedPane.addTab("Laporan User", createIcon("📬"), 
+            new ReportsPanel(), 
+            "Lihat dan kelola laporan pengguna");
         
         tabbedPane.addTab("Dashboard", createIcon("📊"), 
             createDashboardPanel(), 
-            "View statistics and summary");
+            "Lihat statistik dan ringkasan");
+        
+        tabbedPane.addTab("Penanda Peta", createIcon("📍"), 
+            new AdminMapPanel(adminUserId), 
+            "Kelola penanda gedung dan ikon");
+        
+        tabbedPane.addTab("Penutupan Jalan", createIcon("🚧"), 
+            new RoadClosurePanel(adminUserId), 
+            "Kelola penutupan jalan dan jalan satu arah");
         
         add(tabbedPane, BorderLayout.CENTER);
         
@@ -59,11 +63,11 @@ public class AdminMainFrame extends JFrame {
         panel.setBackground(new Color(56, 136, 96));
         panel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
         
-        JLabel titleLabel = new JLabel("PetaUSU Admin Management System");
+        JLabel titleLabel = new JLabel("Sistem Manajemen Admin PetaUSU");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
         titleLabel.setForeground(Color.WHITE);
         
-        JLabel subtitleLabel = new JLabel("Manage markers, buildings, and road information");
+        JLabel subtitleLabel = new JLabel("Kelola penanda, gedung, dan informasi jalan");
         subtitleLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         subtitleLabel.setForeground(new Color(220, 255, 220));
         
@@ -75,13 +79,13 @@ public class AdminMainFrame extends JFrame {
         panel.add(textPanel, BorderLayout.WEST);
         
         // Logout button
-        JButton btnLogout = new JButton("Logout");
+        JButton btnLogout = new JButton("Keluar");
         btnLogout.setBackground(new Color(244, 67, 54));
         btnLogout.setForeground(Color.WHITE);
         btnLogout.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(this, 
-                "Are you sure you want to logout?", 
-                "Confirm Logout", 
+                "Apakah Anda yakin ingin keluar?", 
+                "Konfirmasi Keluar", 
                 JOptionPane.YES_NO_OPTION);
             
             if (confirm == JOptionPane.YES_OPTION) {
@@ -89,7 +93,7 @@ public class AdminMainFrame extends JFrame {
                 // Buka login frame
                 SwingUtilities.invokeLater(() -> {
                     // new LoginFrame().setVisible(true);
-                    JOptionPane.showMessageDialog(null, "Logout successful!");
+                    JOptionPane.showMessageDialog(null, "Berhasil keluar!");
                 });
             }
         });
