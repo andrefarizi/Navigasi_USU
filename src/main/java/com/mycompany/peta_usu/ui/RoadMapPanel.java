@@ -53,6 +53,19 @@ public class RoadMapPanel extends JPanel {
     private Map<Integer, RoadClosure> activeClosures;
     private Road selectedRoad = null;
     
+    // Draggable road markers
+    private GeoPosition startMarker = null;
+    private GeoPosition endMarker = null;
+    private GeoPosition draggedMarker = null;
+    private boolean isAddingRoad = false;
+    private boolean isEditingRoadPosition = false;
+    private Road roadBeingEdited = null;
+    private javax.swing.Timer repaintTimer = null;
+    private Road.RoadType selectedRoadType = Road.RoadType.NORMAL; // Track selected road type
+    
+    // Marker overlay panel
+    private JPanel markerOverlay = null;
+    
     public RoadMapPanel(int userId) {
         this.currentUserId = userId;
         this.roadDAO = new RoadDAO();
@@ -119,26 +132,263 @@ public class RoadMapPanel extends JPanel {
         mapViewer.setZoom(5); // Zoom level untuk kampus (lebih dekat)
         mapViewer.setAddressLocation(usuCenter);
         
-        // Add mouse controls
-        MouseInputListener mia = new PanMouseInputListener(mapViewer);
-        mapViewer.addMouseListener(mia);
-        mapViewer.addMouseMotionListener(mia);
+        // Add mouse wheel zoom
         mapViewer.addMouseWheelListener(new ZoomMouseWheelListenerCursor(mapViewer));
         
-        // Add click listener untuk select road
-        mapViewer.addMouseListener(new MouseAdapter() {
+        // Setup overlay painter FIRST before mouse listeners
+        mapViewer.setOverlayPainter(new Painter<JXMapViewer>() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 1) {
-                    Point point = e.getPoint();
-                    GeoPosition geoPos = mapViewer.convertPointToGeoPosition(point);
-                    selectNearestRoad(geoPos.getLatitude(), geoPos.getLongitude());
+            public void paint(Graphics2D g, JXMapViewer map, int width, int height) {
+                System.out.println("🖌️ OVERLAY PAINTER CALLED!");
+                g = (Graphics2D) g.create();
+                
+                // Enable anti-aliasing
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Convert to world bitmap
+                Rectangle rect = map.getViewportBounds();
+                g.translate(-rect.x, -rect.y);
+                
+                // Draw all roads
+                if (allRoads != null) {
+                    for (Road road : allRoads) {
+                        drawRoad(g, map, road);
+                    }
                 }
+                
+                // RESET translation for markers (they use screen coordinates)
+                g.translate(rect.x, rect.y);
+                
+                // Draw draggable markers saat adding/editing road
+                if (RoadMapPanel.this.isAddingRoad || RoadMapPanel.this.isEditingRoadPosition) {
+                    if (RoadMapPanel.this.startMarker != null) {
+                        drawDraggableMarker(g, map, RoadMapPanel.this.startMarker, "START", new Color(76, 175, 80)); // Green
+                    }
+                    if (RoadMapPanel.this.endMarker != null) {
+                        drawDraggableMarker(g, map, RoadMapPanel.this.endMarker, "END", new Color(244, 67, 54)); // Red
+                    }
+                    
+                    // Draw line between markers
+                    if (startMarker != null && endMarker != null) {
+                        Point2D p1 = map.getTileFactory().geoToPixel(startMarker, map.getZoom());
+                        Point2D p2 = map.getTileFactory().geoToPixel(endMarker, map.getZoom());
+                        
+                        // Convert to screen coordinates
+                        int x1 = (int)p1.getX() - rect.x;
+                        int y1 = (int)p1.getY() - rect.y;
+                        int x2 = (int)p2.getX() - rect.x;
+                        int y2 = (int)p2.getY() - rect.y;
+                        
+                        // Set color based on selected road type
+                        Color lineColor;
+                        if (selectedRoadType == Road.RoadType.CLOSED) {
+                            lineColor = new Color(244, 67, 54, 180); // Red for closed road
+                        } else {
+                            lineColor = new Color(66, 133, 244, 128); // Blue for normal/other roads
+                        }
+                        
+                        g.setColor(lineColor);
+                        g.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 
+                            1.0f, new float[]{10, 5}, 0));
+                        g.drawLine(x1, y1, x2, y2);
+                        
+                        // Draw distance label
+                        double distance = calculateDistance(
+                            startMarker.getLatitude(), startMarker.getLongitude(),
+                            endMarker.getLatitude(), endMarker.getLongitude()
+                        ) / 1000.0; // to km
+                        
+                        int midX = (x1 + x2) / 2;
+                        int midY = (y1 + y2) / 2;
+                        
+                        String distText = String.format("%.2f km", distance);
+                        g.setColor(Color.WHITE);
+                        g.setFont(new Font("Arial", Font.BOLD, 12));
+                        FontMetrics fm = g.getFontMetrics();
+                        int textWidth = fm.stringWidth(distText);
+                        g.fillRect(midX - textWidth/2 - 3, midY - fm.getHeight()/2 - 2, 
+                            textWidth + 6, fm.getHeight() + 4);
+                        g.setColor(selectedRoadType == Road.RoadType.CLOSED ? 
+                            new Color(244, 67, 54) : new Color(66, 133, 244));
+                        g.drawString(distText, midX - textWidth/2, midY + fm.getAscent()/2);
+                    }
+                }
+                
+                g.dispose();
             }
         });
         
-        // Add mapViewer directly to panel (no JScrollPane needed)
-        panel.add(mapViewer, BorderLayout.CENTER);
+        // Add custom mouse listener untuk drag markers DAN pan map
+        CustomMapMouseListener customListener = new CustomMapMouseListener(mapViewer);
+        mapViewer.addMouseListener(customListener);
+        mapViewer.addMouseMotionListener(customListener);
+        
+        // Create transparent overlay panel for markers (LAYERED approach)
+        JLayeredPane layeredPane = new JLayeredPane();
+        layeredPane.setLayout(new OverlayLayout(layeredPane));
+        
+        // Add map as bottom layer
+        mapViewer.setAlignmentX(0.5f);
+        mapViewer.setAlignmentY(0.5f);
+        layeredPane.add(mapViewer, JLayeredPane.DEFAULT_LAYER);
+        
+        // Create marker overlay panel
+        markerOverlay = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics gr) {
+                super.paintComponent(gr);
+                if (isAddingRoad || isEditingRoadPosition) {
+                    Graphics2D g = (Graphics2D) gr.create();
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    
+                    Rectangle rect = mapViewer.getViewportBounds();
+                    
+                    // Draw markers
+                    if (startMarker != null) {
+                        drawMarkerOnOverlay(g, mapViewer, startMarker, "START", new Color(76, 175, 80), rect);
+                    }
+                    if (endMarker != null) {
+                        drawMarkerOnOverlay(g, mapViewer, endMarker, "END", new Color(244, 67, 54), rect);
+                    }
+                    
+                    g.dispose();
+                }
+            }
+        };
+        markerOverlay.setOpaque(false);
+        markerOverlay.setAlignmentX(0.5f);
+        markerOverlay.setAlignmentY(0.5f);
+        
+        // Add mouse listener to overlay for proper coordinate handling
+        MouseAdapter overlayMouseListener = new MouseAdapter() {
+            private GeoPosition draggedMarkerRef = null;
+            private Point lastDragPoint = null;
+            
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!isAddingRoad && !isEditingRoadPosition) {
+                    // Pass event to map viewer for pan/zoom
+                    Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                    mapViewer.dispatchEvent(new MouseEvent(mapViewer, e.getID(), e.getWhen(), 
+                        e.getModifiersEx(), mapPoint.x, mapPoint.y, e.getClickCount(), e.isPopupTrigger(), e.getButton()));
+                    return;
+                }
+                
+                // Convert overlay coordinates to map viewer coordinates
+                Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                GeoPosition clickPos = mapViewer.convertPointToGeoPosition(mapPoint);
+                
+                System.out.println("🖱️ CLICK: overlay=" + e.getPoint() + " -> map=" + mapPoint + " -> geo=(" + String.format("%.6f, %.6f", clickPos.getLatitude(), clickPos.getLongitude()) + ")");
+                
+                // Check if clicking near markers (with larger hit zone for easier grabbing)
+                if (startMarker != null && isNearMarker(clickPos, startMarker)) {
+                    draggedMarkerRef = startMarker;
+                    lastDragPoint = mapPoint;
+                    System.out.println("🟢 START GRABBED at: " + String.format("%.6f, %.6f", startMarker.getLatitude(), startMarker.getLongitude()));
+                    e.consume(); // Don't pass to map
+                } else if (endMarker != null && isNearMarker(clickPos, endMarker)) {
+                    draggedMarkerRef = endMarker;
+                    lastDragPoint = mapPoint;
+                    System.out.println("🔴 END GRABBED at: " + String.format("%.6f, %.6f", endMarker.getLatitude(), endMarker.getLongitude()));
+                    e.consume(); // Don't pass to map
+                } else {
+                    // Not clicking marker, pass to map for pan
+                    mapViewer.dispatchEvent(new MouseEvent(mapViewer, e.getID(), e.getWhen(), 
+                        e.getModifiersEx(), mapPoint.x, mapPoint.y, e.getClickCount(), e.isPopupTrigger(), e.getButton()));
+                }
+            }
+            
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (draggedMarkerRef != null) {
+                    // Convert overlay coordinates to map viewer coordinates
+                    Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                    GeoPosition newPos = mapViewer.convertPointToGeoPosition(mapPoint);
+                    
+                    // Update marker position directly
+                    if (draggedMarkerRef == startMarker) {
+                        startMarker = newPos;
+                        draggedMarkerRef = startMarker; // Update reference
+                        if (lastDragPoint == null || mapPoint.distance(lastDragPoint) > 5) {
+                            System.out.println("🟢 DRAGGING: " + String.format("%.6f, %.6f", newPos.getLatitude(), newPos.getLongitude()));
+                            lastDragPoint = mapPoint;
+                        }
+                    } else if (draggedMarkerRef == endMarker) {
+                        endMarker = newPos;
+                        draggedMarkerRef = endMarker; // Update reference
+                        if (lastDragPoint == null || mapPoint.distance(lastDragPoint) > 5) {
+                            System.out.println("🔴 DRAGGING: " + String.format("%.6f, %.6f", newPos.getLatitude(), newPos.getLongitude()));
+                            lastDragPoint = mapPoint;
+                        }
+                    }
+                    
+                    // Repaint overlay immediately for smooth visual update
+                    markerOverlay.repaint();
+                    e.consume(); // Don't pass to map
+                } else {
+                    // Pass drag event to map for panning
+                    Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                    mapViewer.dispatchEvent(new MouseEvent(mapViewer, e.getID(), e.getWhen(), 
+                        e.getModifiersEx(), mapPoint.x, mapPoint.y, e.getClickCount(), e.isPopupTrigger(), e.getButton()));
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (draggedMarkerRef != null) {
+                    // Convert overlay coordinates to map viewer coordinates
+                    Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                    GeoPosition finalPos = mapViewer.convertPointToGeoPosition(mapPoint);
+                    
+                    // Save final position
+                    if (draggedMarkerRef == startMarker) {
+                        startMarker = finalPos;
+                        System.out.println("✅ START RELEASED at: " + String.format("%.6f, %.6f", finalPos.getLatitude(), finalPos.getLongitude()));
+                    } else if (draggedMarkerRef == endMarker) {
+                        endMarker = finalPos;
+                        System.out.println("✅ END RELEASED at: " + String.format("%.6f, %.6f", finalPos.getLatitude(), finalPos.getLongitude()));
+                    }
+                    
+                    draggedMarkerRef = null;
+                    lastDragPoint = null;
+                    markerOverlay.repaint();
+                    e.consume();
+                } else {
+                    // Pass event to map
+                    Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                    mapViewer.dispatchEvent(new MouseEvent(mapViewer, e.getID(), e.getWhen(), 
+                        e.getModifiersEx(), mapPoint.x, mapPoint.y, e.getClickCount(), e.isPopupTrigger(), e.getButton()));
+                }
+            }
+            
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                // Always pass mouseMoved to map (for cursor updates, etc.)
+                Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                mapViewer.dispatchEvent(new MouseEvent(mapViewer, e.getID(), e.getWhen(), 
+                    e.getModifiersEx(), mapPoint.x, mapPoint.y, e.getClickCount(), e.isPopupTrigger(), e.getButton()));
+            }
+        };
+        
+        markerOverlay.addMouseListener(overlayMouseListener);
+        markerOverlay.addMouseMotionListener(overlayMouseListener);
+        
+        // Add mouse wheel listener for zoom
+        markerOverlay.addMouseWheelListener(new MouseWheelListener() {
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                // Pass wheel events to map for zoom
+                Point mapPoint = SwingUtilities.convertPoint(markerOverlay, e.getPoint(), mapViewer);
+                mapViewer.dispatchEvent(new MouseWheelEvent(mapViewer, e.getID(), e.getWhen(),
+                    e.getModifiersEx(), mapPoint.x, mapPoint.y, e.getClickCount(), 
+                    e.isPopupTrigger(), e.getScrollType(), e.getScrollAmount(), e.getWheelRotation()));
+            }
+        });
+        
+        layeredPane.add(markerOverlay, JLayeredPane.PALETTE_LAYER);
+        
+        // Add layered pane to panel
+        panel.add(layeredPane, BorderLayout.CENTER);
         
         // Legend panel
         JPanel legendPanel = createLegendPanel();
@@ -247,7 +497,7 @@ public class RoadMapPanel extends JPanel {
         btnFetchGoogleMaps.setToolTipText("Ambil polyline dan nama jalan dari Google Maps API");
         btnFetchGoogleMaps.addActionListener(e -> fetchGoogleMapsData());
         
-        btnSetClosure = new JButton("🚧 Atur Penutupan");
+        btnSetClosure = new JButton("🚧 Penutupan Jalan");
         btnSetClosure.setBackground(new Color(255, 152, 0));
         btnSetClosure.setForeground(Color.WHITE);
         btnSetClosure.setFocusPainted(false);
@@ -334,11 +584,15 @@ public class RoadMapPanel extends JPanel {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 
                 for (Road road : allRoads) {
-                    // Determine color based on closure status
+                    // Determine color based on closure status OR road type
                     Color roadColor = Color.BLACK;
                     int strokeWidth = 4; // Increased for better visibility
                     
-                    if (activeClosures.containsKey(road.getRoadId())) {
+                    // Check if road type is CLOSED
+                    if (road.getRoadType() == Road.RoadType.CLOSED) {
+                        roadColor = new Color(220, 20, 60); // Red untuk jalan tertutup
+                        strokeWidth = 5; // Lebih tebal untuk jalan tertutup
+                    } else if (activeClosures.containsKey(road.getRoadId())) {
                         RoadClosure closure = activeClosures.get(road.getRoadId());
                         if (closure.getClosureType() == RoadClosure.ClosureType.PERMANENT) {
                             roadColor = new Color(220, 20, 60); // Red untuk jalan tertutup
@@ -348,19 +602,24 @@ public class RoadMapPanel extends JPanel {
                         }
                     }
                     
-                    // Determine stroke based on is_one_way flag
+                    // Determine stroke based on road type
                     BasicStroke stroke;
-                    if (road.isOneWay()) {
-                        // One way road - dashed blue line
-                        if (activeClosures.containsKey(road.getRoadId())) {
-                            // Keep closure color if closed
-                        } else {
-                            roadColor = new Color(0, 100, 200); // Blue
+                    if (road.getRoadType() == Road.RoadType.ONE_WAY) {
+                        // One way road - dashed line
+                        if (road.getRoadType() != Road.RoadType.CLOSED && !activeClosures.containsKey(road.getRoadId())) {
+                            roadColor = new Color(0, 100, 200); // Blue hanya jika tidak tertutup
+                        }
+                        stroke = new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, 
+                            BasicStroke.JOIN_ROUND, 0, new float[]{10, 5}, 0);
+                    } else if (road.getRoadType() == Road.RoadType.TWO_WAY) {
+                        // Two way road - dashed green line
+                        if (road.getRoadType() != Road.RoadType.CLOSED && !activeClosures.containsKey(road.getRoadId())) {
+                            roadColor = new Color(34, 139, 34); // Green hanya jika tidak tertutup
                         }
                         stroke = new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, 
                             BasicStroke.JOIN_ROUND, 0, new float[]{10, 5}, 0);
                     } else {
-                        // Two way road - solid line
+                        // Normal road or closed road - solid line
                         stroke = new BasicStroke(strokeWidth);
                     }
                     
@@ -609,10 +868,56 @@ public class RoadMapPanel extends JPanel {
     }
     
     private void showAddRoadDialog() {
+        // Aktifkan mode drag marker
+        isAddingRoad = true;
+        System.out.println("========================================");
+        System.out.println("🗺️ MODE TAMBAH JALAN AKTIF");
+        System.out.println("========================================");
+        
+        // Set default posisi 2 marker di tengah peta
+        GeoPosition center = mapViewer.getCenterPosition();
+        double offsetLat = 0.002; // ~200 meter offset
+        double offsetLng = 0.004;
+        
+        startMarker = new GeoPosition(center.getLatitude() + offsetLat, center.getLongitude() - offsetLng);
+        endMarker = new GeoPosition(center.getLatitude() - offsetLat, center.getLongitude() + offsetLng);
+        
+        System.out.println("🟢 START Marker: " + startMarker.getLatitude() + ", " + startMarker.getLongitude());
+        System.out.println("🔴 END Marker: " + endMarker.getLatitude() + ", " + endMarker.getLongitude());
+        System.out.println("📍 Silakan geser marker HIJAU dan MERAH di peta!");
+        
+        // Start repaint timer ONLY during add mode
+        if (repaintTimer != null) repaintTimer.stop();
+        repaintTimer = new javax.swing.Timer(100, e -> mapViewer.repaint()); // 10 FPS
+        repaintTimer.start();
+        
+        // Force immediate repaint
+        mapViewer.repaint();
+        
+        // Show konfirmasi dialog
+        showRoadConfirmationDialog();
+    }
+    
+    private void showRoadConfirmationDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
-            "Tambah Jalan Baru", true);
-        dialog.setSize(500, 450);
+            "Konfirmasi Jalan Baru", false); // Non-modal agar bisa drag marker
+        dialog.setSize(500, 420);
         dialog.setLocationRelativeTo(this);
+        dialog.setAlwaysOnTop(true); // Tetap di atas
+        
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        
+        // Info panel di atas
+        JPanel infoPanel = new JPanel();
+        infoPanel.setBackground(new Color(66, 133, 244));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JLabel lblInfo = new JLabel(
+            "<html><b style='color:white; font-size:12px;'>" +
+            "🗺️ Geser Marker HIJAU (awal) dan MERAH (akhir) di peta!<br>" +
+            "Klik dan tahan marker, lalu drag ke posisi yang diinginkan.</b></html>"
+        );
+        infoPanel.add(lblInfo);
+        mainPanel.add(infoPanel, BorderLayout.NORTH);
         
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -632,70 +937,61 @@ public class RoadMapPanel extends JPanel {
         panel.add(new JLabel("Tipe Jalan:"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2;
         JComboBox<Road.RoadType> cboType = new JComboBox<>(Road.RoadType.values());
+        cboType.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, 
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Road.RoadType) {
+                    setText(((Road.RoadType) value).getDisplayName());
+                }
+                return this;
+            }
+        });
+        cboType.addActionListener(e -> {
+            selectedRoadType = (Road.RoadType) cboType.getSelectedItem();
+            mapViewer.repaint(); // Update preview line color
+            if (markerOverlay != null) markerOverlay.repaint();
+        });
         panel.add(cboType, gbc);
         
-        // One Way
+        // Jarak Manual (km)
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 1;
-        panel.add(new JLabel("Satu Arah:"), gbc);
+        panel.add(new JLabel("Jarak (km):"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2;
-        JCheckBox chkOneWay = new JCheckBox("Jalan satu arah");
-        panel.add(chkOneWay, gbc);
+        JPanel distancePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        JTextField txtDistance = new JTextField("0.0", 10);
+        distancePanel.add(txtDistance);
+        JLabel lblDistanceHint = new JLabel("(akan dihitung otomatis jika 0)");
+        lblDistanceHint.setFont(new Font("Arial", Font.ITALIC, 10));
+        lblDistanceHint.setForeground(Color.GRAY);
+        distancePanel.add(lblDistanceHint);
+        panel.add(distancePanel, gbc);
         
-        // Start Coordinate Label
+        // Koordinat info (read-only, update otomatis)
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 3;
-        JLabel lblStart = new JLabel("Koordinat Awal:");
-        lblStart.setFont(new Font("Arial", Font.BOLD, 12));
-        panel.add(lblStart, gbc);
-        
-        // Start Latitude
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
-        panel.add(new JLabel("  Latitude:"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        JTextField txtStartLat = new JTextField("3.5651");
-        panel.add(txtStartLat, gbc);
-        
-        // Start Longitude
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 1;
-        panel.add(new JLabel("  Longitude:"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        JTextField txtStartLng = new JTextField("98.6566");
-        panel.add(txtStartLng, gbc);
-        
-        // End Coordinate Label
-        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 3;
-        JLabel lblEnd = new JLabel("Koordinat Akhir:");
-        lblEnd.setFont(new Font("Arial", Font.BOLD, 12));
-        panel.add(lblEnd, gbc);
-        
-        // End Latitude
-        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 1;
-        panel.add(new JLabel("  Latitude:"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        JTextField txtEndLat = new JTextField("3.5670");
-        panel.add(txtEndLat, gbc);
-        
-        // End Longitude
-        gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 1;
-        panel.add(new JLabel("  Longitude:"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
-        JTextField txtEndLng = new JTextField("98.6580");
-        panel.add(txtEndLng, gbc);
+        JLabel lblCoordInfo = new JLabel("<html>📍 <i>Koordinat akan diambil dari posisi marker di peta</i></html>");
+        lblCoordInfo.setFont(new Font("Arial", Font.PLAIN, 10));
+        lblCoordInfo.setForeground(Color.GRAY);
+        panel.add(lblCoordInfo, gbc);
         
         // Description
-        gbc.gridx = 0; gbc.gridy = 9; gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 1;
         panel.add(new JLabel("Deskripsi:"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2;
-        JTextArea txtDesc = new JTextArea(2, 30);
+        JTextArea txtDesc = new JTextArea(3, 30);
         txtDesc.setLineWrap(true);
-        panel.add(new JScrollPane(txtDesc), gbc);
+        JScrollPane scrollDesc = new JScrollPane(txtDesc);
+        panel.add(scrollDesc, gbc);
         
         // Buttons
-        gbc.gridx = 0; gbc.gridy = 10; gbc.gridwidth = 3;
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 3;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         
-        JButton btnSave = new JButton("Simpan");
+        JButton btnSave = new JButton("💾 Simpan Jalan");
         btnSave.setBackground(new Color(76, 175, 80));
         btnSave.setForeground(Color.WHITE);
+        btnSave.setFocusPainted(false);
         btnSave.addActionListener(e -> {
             try {
                 // Validasi input
@@ -711,19 +1007,27 @@ public class RoadMapPanel extends JPanel {
                 Road road = new Road();
                 road.setRoadName(roadName);
                 road.setRoadType((Road.RoadType) cboType.getSelectedItem());
-                road.setStartLat(Double.parseDouble(txtStartLat.getText().trim()));
-                road.setStartLng(Double.parseDouble(txtStartLng.getText().trim()));
-                road.setEndLat(Double.parseDouble(txtEndLat.getText().trim()));
-                road.setEndLng(Double.parseDouble(txtEndLng.getText().trim()));
-                road.setOneWay(chkOneWay.isSelected());
+                road.setStartLat(startMarker.getLatitude());
+                road.setStartLng(startMarker.getLongitude());
+                road.setEndLat(endMarker.getLatitude());
+                road.setEndLng(endMarker.getLongitude());
+                
+                // Set isOneWay based on road type
+                road.setOneWay(road.getRoadType() == Road.RoadType.ONE_WAY);
                 road.setDescription(txtDesc.getText().trim());
                 
-                // Calculate distance using Haversine formula
-                double distance = calculateDistance(
-                    road.getStartLat(), road.getStartLng(),
-                    road.getEndLat(), road.getEndLng()
-                );
-                road.setDistance(distance);
+                // Use manual distance or calculate
+                double manualDistance = Double.parseDouble(txtDistance.getText().trim());
+                if (manualDistance > 0) {
+                    road.setDistance(manualDistance * 1000); // Convert km to meters
+                } else {
+                    // Calculate distance using Haversine formula
+                    double distance = calculateDistance(
+                        road.getStartLat(), road.getStartLng(),
+                        road.getEndLat(), road.getEndLng()
+                    );
+                    road.setDistance(distance);
+                }
                 
                 // Set default values untuk field baru (Google Maps akan diisi kemudian)
                 road.setPolylinePoints(null);
@@ -733,11 +1037,30 @@ public class RoadMapPanel extends JPanel {
                 
                 if (roadDAO.insertRoad(road)) {
                     JOptionPane.showMessageDialog(dialog,
-                        "✅ Jalan berhasil ditambahkan!\n\n" +
-                        "Tip: Pilih jalan ini dan klik 'Fetch dari Google Maps'\n" +
-                        "untuk mendapatkan polyline yang mengikuti jalan sebenarnya.",
+                        String.format(
+                            "✅ Jalan berhasil ditambahkan!\n\n" +
+                            "Nama: %s\n" +
+                            "Koordinat Awal: %.6f, %.6f\n" +
+                            "Koordinat Akhir: %.6f, %.6f\n\n" +
+                            "Tip: Pilih jalan ini dan klik 'Fetch dari Google Maps'\n" +
+                            "untuk mendapatkan polyline yang mengikuti jalan sebenarnya.",
+                            roadName,
+                            road.getStartLat(), road.getStartLng(),
+                            road.getEndLat(), road.getEndLng()
+                        ),
                         "Sukses",
                         JOptionPane.INFORMATION_MESSAGE);
+                    
+                    // Reset mode
+                    isAddingRoad = false;
+                    startMarker = null;
+                    endMarker = null;
+                    if (repaintTimer != null) {
+                        repaintTimer.stop();
+                        repaintTimer = null;
+                    }
+                    mapViewer.repaint();
+                    
                     dialog.dispose();
                     loadRoads();
                 } else {
@@ -749,30 +1072,37 @@ public class RoadMapPanel extends JPanel {
                 }
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(dialog,
-                    "Format koordinat tidak valid!\n\n" +
-                    "Gunakan format angka desimal, contoh:\n" +
-                    "Latitude: 3.5651\n" +
-                    "Longitude: 98.6566",
+                    "Format jarak tidak valid!",
                     "Format Error",
                     JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dialog,
-                    "Error tidak terduga: " + ex.getMessage() + "\n\n" +
-                    "Pastikan semua field diisi dengan benar.",
+                    "Error: " + ex.getMessage(),
                     "Error",
                     JOptionPane.ERROR_MESSAGE);
                 ex.printStackTrace();
             }
         });
         
-        JButton btnCancel = new JButton("Batal");
-        btnCancel.addActionListener(e -> dialog.dispose());
+        JButton btnCancel = new JButton("❌ Batal");
+        btnCancel.addActionListener(e -> {
+            isAddingRoad = false;
+            startMarker = null;
+            endMarker = null;
+            if (repaintTimer != null) {
+                repaintTimer.stop();
+                repaintTimer = null;
+            }
+            mapViewer.repaint();
+            dialog.dispose();
+        });
         
         btnPanel.add(btnSave);
         btnPanel.add(btnCancel);
         panel.add(btnPanel, gbc);
         
-        dialog.add(panel);
+        mainPanel.add(panel, BorderLayout.CENTER);
+        dialog.add(mainPanel);
         dialog.setVisible(true);
     }
     
@@ -811,33 +1141,95 @@ public class RoadMapPanel extends JPanel {
             return;
         }
         
-        // Show edit dialog with road type options
-        String[] types = {"MAIN_ROAD", "ONE_WAY", "TWO_WAY", "PEDESTRIAN"};
-        String newType = (String) JOptionPane.showInputDialog(
-            this,
-            "Pilih tipe jalan baru untuk: " + road.getRoadName(),
-            "Edit Tipe Jalan",
-            JOptionPane.QUESTION_MESSAGE,
-            null,
-            types,
-            road.getRoadType()
-        );
+        // Simple edit dialog - hanya nama dan tipe
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+            "Edit Jalan: " + road.getRoadName(), true);
+        dialog.setSize(400, 200);
+        dialog.setLocationRelativeTo(this);
         
-        if (newType != null && !newType.equals(road.getRoadType().toString())) {
-            road.setRoadType(Road.RoadType.valueOf(newType));
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        // Nama Jalan
+        gbc.gridx = 0; gbc.gridy = 0;
+        panel.add(new JLabel("Nama Jalan:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JTextField txtNama = new JTextField(road.getRoadName(), 25);
+        panel.add(txtNama, gbc);
+        
+        // Tipe Jalan
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1;
+        panel.add(new JLabel("Tipe Jalan:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2;
+        JComboBox<Road.RoadType> cboType = new JComboBox<>(Road.RoadType.values());
+        cboType.setSelectedItem(road.getRoadType());
+        cboType.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, 
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Road.RoadType) {
+                    setText(((Road.RoadType) value).getDisplayName());
+                }
+                return this;
+            }
+        });
+        cboType.addActionListener(e -> {
+            selectedRoadType = (Road.RoadType) cboType.getSelectedItem();
+            mapViewer.repaint(); // Update preview line color
+            if (markerOverlay != null) markerOverlay.repaint();
+        });
+        panel.add(cboType, gbc);
+        
+        // Buttons
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 3;
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        
+        JButton btnSave = new JButton("💾 Simpan");
+        btnSave.setBackground(new Color(76, 175, 80));
+        btnSave.setForeground(Color.WHITE);
+        btnSave.setFocusPainted(false);
+        btnSave.addActionListener(e -> {
+            String newName = txtNama.getText().trim();
+            if (newName.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog,
+                    "Nama jalan tidak boleh kosong!",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            road.setRoadName(newName);
+            road.setRoadType((Road.RoadType) cboType.getSelectedItem());
+            road.setOneWay(road.getRoadType() == Road.RoadType.ONE_WAY);
+            
             if (roadDAO.updateRoad(road)) {
-                JOptionPane.showMessageDialog(this,
-                    "Tipe jalan berhasil diubah!",
+                JOptionPane.showMessageDialog(dialog,
+                    "✅ Jalan berhasil diupdate!",
                     "Sukses",
                     JOptionPane.INFORMATION_MESSAGE);
+                dialog.dispose();
                 loadRoads();
             } else {
-                JOptionPane.showMessageDialog(this,
-                    "Gagal mengubah tipe jalan",
+                JOptionPane.showMessageDialog(dialog,
+                    "Gagal mengupdate jalan",
                     "Error",
                     JOptionPane.ERROR_MESSAGE);
             }
-        }
+        });
+        
+        JButton btnCancel = new JButton("Batal");
+        btnCancel.addActionListener(e -> dialog.dispose());
+        
+        btnPanel.add(btnSave);
+        btnPanel.add(btnCancel);
+        panel.add(btnPanel, gbc);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
     }
     
     private void setRoadClosure() {
@@ -1062,5 +1454,331 @@ public class RoadMapPanel extends JPanel {
         
         worker.execute();
         progressDialog.setVisible(true); // Blocks until worker calls dispose()
+    }
+    
+    /**
+     * Check if click position is near a marker (within ~50 pixels)
+     */
+    private boolean isNearMarker(GeoPosition clickPos, GeoPosition markerPos) {
+        Point2D clickPoint = mapViewer.getTileFactory().geoToPixel(clickPos, mapViewer.getZoom());
+        Point2D markerPoint = mapViewer.getTileFactory().geoToPixel(markerPos, mapViewer.getZoom());
+        
+        double distance = Math.sqrt(
+            Math.pow(clickPoint.getX() - markerPoint.getX(), 2) +
+            Math.pow(clickPoint.getY() - markerPoint.getY(), 2)
+        );
+        
+        return distance < 50; // 50 pixels threshold
+    }
+    
+    /**
+     * Draw draggable marker on overlay panel (VISIBLE APPROACH)
+     */
+    private void drawMarkerOnOverlay(Graphics2D g, JXMapViewer map, GeoPosition pos, String label, Color color, Rectangle viewport) {
+        Point2D point = map.getTileFactory().geoToPixel(pos, map.getZoom());
+        
+        // Convert to overlay coordinates (relative to overlay panel, not viewport)
+        int x = (int) point.getX() - viewport.x;
+        int y = (int) point.getY() - viewport.y;
+        
+        // Draw small dot marker (14px)
+        int pinSize = 14;
+        int innerSize = 8;
+        
+        // Outer circle
+        g.setColor(color);
+        g.fillOval(x - pinSize/2, y - pinSize, pinSize, pinSize);
+        
+        // Inner circle
+        g.setColor(Color.WHITE);
+        g.fillOval(x - innerSize/2, y - pinSize + (pinSize - innerSize)/2, innerSize, innerSize);
+        
+        // Pointer (small)
+        int[] xPoints = {x, x - 4, x + 4};
+        int[] yPoints = {y, y - 4, y - 4};
+        g.setColor(color);
+        g.fillPolygon(xPoints, yPoints, 3);
+        
+        // Label (compact)
+        g.setFont(new Font("Arial", Font.BOLD, 9));
+        FontMetrics fm = g.getFontMetrics();
+        int textWidth = fm.stringWidth(label);
+        
+        g.setColor(color);
+        g.fillRoundRect(x - textWidth/2 - 2, y + 2, textWidth + 4, fm.getHeight() + 1, 3, 3);
+        
+        g.setColor(Color.WHITE);
+        g.drawString(label, x - textWidth/2, y + 2 + fm.getAscent());
+    }
+    
+    /**
+     * Draw draggable marker on map (using SCREEN coordinates - viewport already adjusted)
+     */
+    private void drawDraggableMarker(Graphics2D g, JXMapViewer map, GeoPosition pos, String label, Color color) {
+        // Convert geo to pixel (world coordinates)
+        Point2D point = map.getTileFactory().geoToPixel(pos, map.getZoom());
+        
+        // Convert to screen coordinates by subtracting viewport offset
+        Rectangle rect = map.getViewportBounds();
+        int x = (int) point.getX() - rect.x;
+        int y = (int) point.getY() - rect.y;
+        
+        // Draw pin marker (LARGER and MORE VISIBLE)
+        int pinSize = 40;
+        int innerSize = 28;
+        
+        // Outer circle (colored)
+        g.setColor(color);
+        g.fillOval(x - pinSize/2, y - pinSize, pinSize, pinSize);
+        
+        // Inner circle (white)
+        g.setColor(Color.WHITE);
+        g.fillOval(x - innerSize/2, y - pinSize + (pinSize - innerSize)/2, innerSize, innerSize);
+        
+        // Draw pointer
+        int[] xPoints = {x, x - 12, x + 12};
+        int[] yPoints = {y, y - 12, y - 12};
+        g.setColor(color);
+        g.fillPolygon(xPoints, yPoints, 3);
+        
+        // Draw label
+        g.setColor(Color.BLACK);
+        g.setFont(new Font("Arial", Font.BOLD, 16));
+        FontMetrics fm = g.getFontMetrics();
+        int textWidth = fm.stringWidth(label);
+        
+        // Background
+        g.setColor(color);
+        g.fillRoundRect(x - textWidth/2 - 6, y + 10, textWidth + 12, fm.getHeight() + 4, 8, 8);
+        
+        // Text
+        g.setColor(Color.WHITE);
+        g.drawString(label, x - textWidth/2, y + 10 + fm.getAscent() + 2);
+    }
+    
+    /**
+     * Draw road on map (with or without polyline)
+     */
+    private void drawRoad(Graphics2D g, JXMapViewer map, Road road) {
+        // Determine color based on type and closure
+        Color roadColor;
+        boolean isClosed = activeClosures.containsKey(road.getRoadId()) || 
+                          road.getRoadType() == Road.RoadType.CLOSED;
+        
+        if (isClosed) {
+            roadColor = new Color(220, 50, 50); // MERAH = Tertutup
+        } else if (road.getRoadType() == Road.RoadType.ONE_WAY) {
+            roadColor = new Color(0, 100, 200); // BIRU = Satu Arah
+        } else if (road.getRoadType() == Road.RoadType.TWO_WAY) {
+            roadColor = new Color(0, 150, 0); // HIJAU = Dua Arah
+        } else {
+            roadColor = Color.BLACK; // HITAM = Normal
+        }
+        
+        g.setColor(roadColor);
+        g.setStroke(new BasicStroke(4, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        
+        // Draw polyline if available
+        if (road.getPolylinePoints() != null && !road.getPolylinePoints().isEmpty()) {
+            List<GeoPosition> points = decodePolyline(road.getPolylinePoints());
+            if (points != null && points.size() > 1) {
+                for (int i = 0; i < points.size() - 1; i++) {
+                    GeoPosition p1 = points.get(i);
+                    GeoPosition p2 = points.get(i + 1);
+                    
+                    Point2D pt1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                    Point2D pt2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                    
+                    g.drawLine((int)pt1.getX(), (int)pt1.getY(), (int)pt2.getX(), (int)pt2.getY());
+                    
+                    // Draw arrow for direction (every 3rd segment)
+                    if (i % 3 == 0) {
+                        drawArrow(g, (int)pt1.getX(), (int)pt1.getY(), (int)pt2.getX(), (int)pt2.getY(), 
+                                 road.getRoadType() == Road.RoadType.ONE_WAY);
+                    }
+                }
+                return;
+            }
+        }
+        
+        // Fallback: draw straight line
+        GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
+        GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
+        
+        Point2D p1 = map.getTileFactory().geoToPixel(start, map.getZoom());
+        Point2D p2 = map.getTileFactory().geoToPixel(end, map.getZoom());
+        
+        g.drawLine((int)p1.getX(), (int)p1.getY(), (int)p2.getX(), (int)p2.getY());
+        
+        // Draw arrow in middle
+        drawArrow(g, (int)p1.getX(), (int)p1.getY(), (int)p2.getX(), (int)p2.getY(), 
+                 road.getRoadType() == Road.RoadType.ONE_WAY);
+    }
+    
+    /**
+     * Draw directional arrow on road
+     */
+    private void drawArrow(Graphics2D g, int x1, int y1, int x2, int y2, boolean oneWayOnly) {
+        // Calculate angle
+        double angle = Math.atan2(y2 - y1, x2 - x1);
+        
+        // Arrow at middle point
+        int mx = (x1 + x2) / 2;
+        int my = (y1 + y2) / 2;
+        
+        int arrowSize = 8;
+        
+        // Draw single arrow (for one-way)
+        int ax1 = (int)(mx - arrowSize * Math.cos(angle - Math.PI / 6));
+        int ay1 = (int)(my - arrowSize * Math.sin(angle - Math.PI / 6));
+        int ax2 = (int)(mx - arrowSize * Math.cos(angle + Math.PI / 6));
+        int ay2 = (int)(my - arrowSize * Math.sin(angle + Math.PI / 6));
+        
+        g.fillPolygon(new int[]{mx, ax1, ax2}, new int[]{my, ay1, ay2}, 3);
+        
+        // Draw reverse arrow for two-way
+        if (!oneWayOnly) {
+            int bx1 = (int)(mx + arrowSize * Math.cos(angle - Math.PI / 6));
+            int by1 = (int)(my + arrowSize * Math.sin(angle - Math.PI / 6));
+            int bx2 = (int)(mx + arrowSize * Math.cos(angle + Math.PI / 6));
+            int by2 = (int)(my + arrowSize * Math.sin(angle + Math.PI / 6));
+            
+            g.fillPolygon(new int[]{mx, bx1, bx2}, new int[]{my, by1, by2}, 3);
+        }
+    }
+    
+    /**
+     * Custom mouse listener yang handle drag marker DAN pan map
+     */
+    private class CustomMapMouseListener extends MouseAdapter {
+        private final JXMapViewer viewer;
+        private Point startDragPoint;
+        private boolean isDraggingMap = false;
+        
+        public CustomMapMouseListener(JXMapViewer viewer) {
+            this.viewer = viewer;
+        }
+        
+        @Override
+        public void mousePressed(MouseEvent e) {
+            startDragPoint = e.getPoint();
+            
+            // Check if in add/edit mode dan klik dekat marker
+            if (isAddingRoad || isEditingRoadPosition) {
+                GeoPosition clickPos = viewer.convertPointToGeoPosition(e.getPoint());
+                
+                // Check if clicking near start or end marker
+                if (startMarker != null && isNearMarker(clickPos, startMarker)) {
+                    draggedMarker = startMarker;
+                    System.out.println("🟢 START marker grabbed for dragging");
+                    return; // Don't pan map
+                } else if (endMarker != null && isNearMarker(clickPos, endMarker)) {
+                    draggedMarker = endMarker;
+                    System.out.println("🔴 END marker grabbed for dragging");
+                    return; // Don't pan map
+                }
+            }
+            
+            // If not dragging marker, allow map pan
+            isDraggingMap = true;
+        }
+        
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            if (draggedMarker != null) {
+                // Get final position
+                Point point = e.getPoint();
+                GeoPosition finalPos = viewer.convertPointToGeoPosition(point);
+                
+                // Save final position
+                if (draggedMarker == startMarker) {
+                    startMarker = finalPos;
+                    System.out.println("✅ START marker final position: " + finalPos.getLatitude() + ", " + finalPos.getLongitude());
+                } else if (draggedMarker == endMarker) {
+                    endMarker = finalPos;
+                    System.out.println("✅ END marker final position: " + finalPos.getLatitude() + ", " + finalPos.getLongitude());
+                }
+                
+                // Force multiple repaints to ensure visual update
+                viewer.repaint();
+                viewer.revalidate();
+                SwingUtilities.invokeLater(() -> viewer.repaint());
+            }
+            draggedMarker = null;
+            isDraggingMap = false;
+            startDragPoint = null;
+        }
+        
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            // Only select road if not in add/edit mode
+            if (e.getClickCount() == 1 && !isAddingRoad && !isEditingRoadPosition) {
+                GeoPosition geoPos = viewer.convertPointToGeoPosition(e.getPoint());
+                selectNearestRoad(geoPos.getLatitude(), geoPos.getLongitude());
+            }
+        }
+        
+        @Override
+        public void mouseDragged(MouseEvent e) {
+            // Priority 1: Drag marker
+            if (draggedMarker != null) {
+                Point point = e.getPoint();
+                GeoPosition newPos = viewer.convertPointToGeoPosition(point);
+                
+                // Update marker position
+                if (draggedMarker == startMarker) {
+                    startMarker = newPos;
+                    System.out.println("🟢 START moved to: " + newPos.getLatitude() + ", " + newPos.getLongitude());
+                } else if (draggedMarker == endMarker) {
+                    endMarker = newPos;
+                    System.out.println("🔴 END moved to: " + newPos.getLatitude() + ", " + newPos.getLongitude());
+                }
+                
+                // CRITICAL: Force repaint by triggering map update
+                viewer.setZoom(viewer.getZoom()); // Dummy zoom change to force repaint
+                viewer.repaint();
+                return; // Don't pan map when dragging marker
+            }
+            
+            // Priority 2: Pan map (only if not dragging marker)
+            if (isDraggingMap && startDragPoint != null) {
+                Point currentPoint = e.getPoint();
+                int dx = currentPoint.x - startDragPoint.x;
+                int dy = currentPoint.y - startDragPoint.y;
+                
+                // Pan the map by adjusting center position
+                Rectangle viewportBounds = viewer.getViewportBounds();
+                int newX = viewportBounds.x - dx;
+                int newY = viewportBounds.y - dy;
+                
+                // Calculate new center position
+                Point2D centerPixel = new Point2D.Double(
+                    newX + viewportBounds.width / 2.0,
+                    newY + viewportBounds.height / 2.0
+                );
+                
+                GeoPosition newCenter = viewer.getTileFactory().pixelToGeo(centerPixel, viewer.getZoom());
+                viewer.setCenterPosition(newCenter);
+                
+                startDragPoint = currentPoint;
+            }
+        }
+        
+        @Override
+        public void mouseMoved(MouseEvent e) {
+            // Change cursor when hovering over marker
+            if (isAddingRoad || isEditingRoadPosition) {
+                GeoPosition hoverPos = viewer.convertPointToGeoPosition(e.getPoint());
+                
+                if ((startMarker != null && isNearMarker(hoverPos, startMarker)) ||
+                    (endMarker != null && isNearMarker(hoverPos, endMarker))) {
+                    viewer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                } else {
+                    viewer.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+                }
+            } else {
+                viewer.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+            }
+        }
     }
 }

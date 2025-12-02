@@ -22,24 +22,26 @@ public class RoadDAO {
     // Create
     public boolean insertRoad(Road road) {
         String sql = "INSERT INTO roads (road_name, road_type, start_lat, start_lng, " +
-                    "end_lat, end_lng, is_one_way, distance, description, " +
+                    "end_lat, end_lng, is_one_way, direction, is_active, distance, description, " +
                     "polyline_points, google_road_name, road_segments, last_gmaps_update) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, road.getRoadName());
-            pstmt.setString(2, road.getRoadType().getValue());
+            pstmt.setString(2, road.getRoadType() != null ? road.getRoadType().getValue() : Road.RoadType.NORMAL.getValue());
             pstmt.setDouble(3, road.getStartLat());
             pstmt.setDouble(4, road.getStartLng());
             pstmt.setDouble(5, road.getEndLat());
             pstmt.setDouble(6, road.getEndLng());
             pstmt.setBoolean(7, road.isOneWay());
-            pstmt.setDouble(8, road.getDistance());
-            pstmt.setString(9, road.getDescription());
-            pstmt.setString(10, road.getPolylinePoints());
-            pstmt.setString(11, road.getGoogleRoadName());
-            pstmt.setString(12, road.getRoadSegments());
-            pstmt.setTimestamp(13, road.getLastGmapsUpdate());
+            pstmt.setString(8, "normal"); // direction - default to normal
+            pstmt.setBoolean(9, true); // is_active - default to true
+            pstmt.setDouble(10, road.getDistance());
+            pstmt.setString(11, road.getDescription());
+            pstmt.setString(12, road.getPolylinePoints());
+            pstmt.setString(13, road.getGoogleRoadName());
+            pstmt.setString(14, road.getRoadSegments());
+            pstmt.setTimestamp(15, road.getLastGmapsUpdate());
             
             int affected = pstmt.executeUpdate();
             if (affected > 0) {
@@ -94,25 +96,27 @@ public class RoadDAO {
     // Update
     public boolean updateRoad(Road road) {
         String sql = "UPDATE roads SET road_name = ?, road_type = ?, start_lat = ?, " +
-                    "start_lng = ?, end_lat = ?, end_lng = ?, is_one_way = ?, " +
+                    "start_lng = ?, end_lat = ?, end_lng = ?, is_one_way = ?, direction = ?, is_active = ?, " +
                     "distance = ?, description = ?, polyline_points = ?, google_road_name = ?, " +
                     "road_segments = ?, last_gmaps_update = ? WHERE road_id = ?";
         
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, road.getRoadName());
-            pstmt.setString(2, road.getRoadType().getValue());
+            pstmt.setString(2, road.getRoadType() != null ? road.getRoadType().getValue() : Road.RoadType.NORMAL.getValue());
             pstmt.setDouble(3, road.getStartLat());
             pstmt.setDouble(4, road.getStartLng());
             pstmt.setDouble(5, road.getEndLat());
             pstmt.setDouble(6, road.getEndLng());
             pstmt.setBoolean(7, road.isOneWay());
-            pstmt.setDouble(8, road.getDistance());
-            pstmt.setString(9, road.getDescription());
-            pstmt.setString(10, road.getPolylinePoints());
-            pstmt.setString(11, road.getGoogleRoadName());
-            pstmt.setString(12, road.getRoadSegments());
-            pstmt.setTimestamp(13, road.getLastGmapsUpdate());
-            pstmt.setInt(14, road.getRoadId());
+            pstmt.setString(8, "normal"); // direction
+            pstmt.setBoolean(9, true); // is_active
+            pstmt.setDouble(10, road.getDistance());
+            pstmt.setString(11, road.getDescription());
+            pstmt.setString(12, road.getPolylinePoints());
+            pstmt.setString(13, road.getGoogleRoadName());
+            pstmt.setString(14, road.getRoadSegments());
+            pstmt.setTimestamp(15, road.getLastGmapsUpdate());
+            pstmt.setInt(16, road.getRoadId());
             
             int affected = pstmt.executeUpdate();
             if (affected > 0) {

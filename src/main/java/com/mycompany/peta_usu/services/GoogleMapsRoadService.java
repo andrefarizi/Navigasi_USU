@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,12 +60,14 @@ public class GoogleMapsRoadService {
         
         try {
             // Use Directions API untuk mendapatkan route dengan detailed steps
-            String urlString = String.format(
-                "https://maps.googleapis.com/maps/api/directions/json?origin=%f,%f&destination=%f,%f&mode=driving&key=%s",
+            // CRITICAL: Use Locale.US to ensure decimal points (not commas)
+            String urlString = String.format(Locale.US,
+                "https://maps.googleapis.com/maps/api/directions/json?origin=%.7f,%.7f&destination=%.7f,%.7f&mode=walking&region=ID&language=id&key=%s",
                 startLat, startLng, endLat, endLng, API_KEY
             );
             
             logger.info("Fetching road info from Google Maps Directions API...");
+            logger.info("URL: " + urlString);
             
             URI uri = new URI(urlString);
             HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();

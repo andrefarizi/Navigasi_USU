@@ -111,19 +111,24 @@ public class PathfindingService {
         Set<Integer> closedRoadIds = new HashSet<>();
         if (closures != null) {
             for (RoadClosure closure : closures) {
-                // Hanya jalan yang permanently closed yang tidak bisa dilewati
-                if (closure.getClosureType() == RoadClosure.ClosureType.PERMANENT) {
-                    closedRoadIds.add(closure.getRoadId());
-                }
+                // Semua jalan yang ditutup tidak bisa dilewati
+                closedRoadIds.add(closure.getRoadId());
             }
         }
         
-        // Filter roads yang tidak closed
+        // Filter roads yang tidak closed dan bukan CLOSED type
         List<Road> availableRoads = new ArrayList<>();
         for (Road road : allRoads) {
-            if (!closedRoadIds.contains(road.getRoadId())) {
-                availableRoads.add(road);
+            // Skip jalan yang ditutup via RoadClosure atau tipe CLOSED
+            if (closedRoadIds.contains(road.getRoadId())) {
+                System.out.println("Skipping closed road: " + road.getRoadName() + " (ID: " + road.getRoadId() + ")");
+                continue;
             }
+            if (road.getRoadType() == Road.RoadType.CLOSED) {
+                System.out.println("Skipping CLOSED type road: " + road.getRoadName());
+                continue;
+            }
+            availableRoads.add(road);
         }
         
         // Build graph dari roads
@@ -190,14 +195,16 @@ public class PathfindingService {
                 road.getEndLat(), road.getEndLng()
             );
             
-            // Add edges based on is_one_way flag
-            if (road.isOneWay()) {
+            // Add edges based on road type
+            if (road.getRoadType() == Road.RoadType.ONE_WAY || road.isOneWay()) {
                 // One way road (start -> end only)
                 graph.get(startNode).add(new Edge(endNode, distance, road));
-            } else {
+                System.out.println("Added ONE_WAY road: " + road.getRoadName() + " (" + road.getStartLat() + "," + road.getStartLng() + " -> " + road.getEndLat() + "," + road.getEndLng() + ")");
+            } else if (road.getRoadType() == Road.RoadType.TWO_WAY || road.getRoadType() == Road.RoadType.NORMAL) {
                 // Two way road (bidirectional)
                 graph.get(startNode).add(new Edge(endNode, distance, road));
                 graph.get(endNode).add(new Edge(startNode, distance, road));
+                System.out.println("Added TWO_WAY road: " + road.getRoadName() + " (" + road.getStartLat() + "," + road.getStartLng() + " <-> " + road.getEndLat() + "," + road.getEndLng() + ")");
             }
         }
         

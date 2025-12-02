@@ -774,7 +774,7 @@ public class MapFrame extends javax.swing.JFrame {
             logger.info("From: " + startName + " (" + startPosition.getLatitude() + "," + startPosition.getLongitude() + ")");
             logger.info("To: " + endName + " (" + endPosition.getLatitude() + "," + endPosition.getLongitude() + ")");
             
-            // Use Google Maps DirectionsService untuk rute yang mengikuti jalan sebenarnya
+            // Use Google Maps untuk rute yang detail dan mengikuti jalan sebenarnya
             com.mycompany.peta_usu.services.DirectionsService directionsService = 
                 new com.mycompany.peta_usu.services.DirectionsService();
             
@@ -786,56 +786,27 @@ public class MapFrame extends javax.swing.JFrame {
                     endPosition.getLongitude()
                 );
             
-            // Check if route was successfully retrieved
-            if (route == null) {
-                logger.severe("DirectionsService returned null!");
+            if (route == null || route.polyline == null || route.polyline.isEmpty()) {
+                logger.severe("Google Maps returned no route!");
                 JOptionPane.showMessageDialog(this,
-                    "Gagal mendapatkan rute dari Google Maps API!\nPeriksa koneksi internet dan API key.",
+                    "Tidak dapat menemukan rute!\nPeriksa koneksi internet.",
                     "Error",
                     JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
-            logger.info("Route received from Google Maps API");
+            logger.info("✅ Route from Google Maps");
             logger.info("Distance: " + route.distanceKm + " km");
             logger.info("Duration: " + route.durationMinutes + " minutes");
-            logger.info("Polyline points: " + (route.polyline != null ? route.polyline.size() : "null"));
-            logger.info("Road names: " + (route.roadNames != null ? route.roadNames.size() : "null"));
+            logger.info("Polyline points: " + route.polyline.size());
             
-            // Convert DirectionsService polyline to GeoPosition
+            // Check if route passes through any closed roads
+            List<String> closedRoadWarnings = checkRouteForClosedRoads(route.polyline);
+            
+            // Use Google Maps polyline (detail dan akurat)
             routePath.clear();
-            if (route.polyline != null && !route.polyline.isEmpty()) {
-                // Use Google Maps polyline (mengikuti jalan sebenarnya!)
-                List<GeoPosition> originalPath = route.polyline;
-                
-                // CRITICAL: Simplify polyline if too many points (performance issue!)
-                if (originalPath.size() > 1000) {
-                    logger.warning("⚠️ Too many polyline points: " + originalPath.size() + " - simplifying...");
-                    // Keep only every Nth point for performance
-                    int skipFactor = originalPath.size() / 500; // Target ~500 points
-                    for (int i = 0; i < originalPath.size(); i += skipFactor) {
-                        routePath.add(originalPath.get(i));
-                    }
-                    // Always add last point
-                    if (!routePath.isEmpty() && !routePath.get(routePath.size() - 1).equals(originalPath.get(originalPath.size() - 1))) {
-                        routePath.add(originalPath.get(originalPath.size() - 1));
-                    }
-                    logger.info("✅ Simplified from " + originalPath.size() + " to " + routePath.size() + " points");
-                } else {
-                    routePath.addAll(originalPath);
-                    logger.info("✅ Using all " + routePath.size() + " points (reasonable size)");
-                }
-                
-                routeVisible = true;
-                logger.info("✅ routePath filled with " + routePath.size() + " points");
-                logger.info("✅ routeVisible set to: " + routeVisible);
-            } else {
-                // Fallback to straight line if Google Maps failed
-                routePath.add(startPosition);
-                routePath.add(endPosition);
-                routeVisible = true;
-                logger.warning("⚠️ Google Maps polyline empty, using straight line fallback");
-            }
+            routePath.addAll(route.polyline);
+            routeVisible = true;
             
             // Update waypoints to re-render with route
             logger.info("Calling updateWaypoints()...");
@@ -853,41 +824,59 @@ public class MapFrame extends javax.swing.JFrame {
             double centerLon = (startPosition.getLongitude() + endPosition.getLongitude()) / 2;
             mapViewer.setAddressLocation(new GeoPosition(centerLat, centerLon));
             
-            // Show route info dengan data dari Google Maps
-            String pathInfo;
-            if (route.roadNames.isEmpty()) {
-                pathInfo = route.summary.isEmpty() ? "Rute langsung" : route.summary;
+            // Show route info
+            StringBuilder pathInfo = new StringBuilder();
+            if (!route.roadNames.isEmpty()) {
+                int maxRoads = Math.min(route.roadNames.size(), 5);
+                for (int i = 0; i < maxRoads; i++) {
+                    if (i > 0) pathInfo.append(" → ");
+                    pathInfo.append(route.roadNames.get(i));
+                }
+                if (route.roadNames.size() > maxRoads) {
+                    pathInfo.append(" → ... (").append(route.roadNames.size() - maxRoads).append(" jalan lainnya)");
+                }
+            } else if (!route.summary.isEmpty()) {
+                pathInfo.append(route.summary);
             } else {
-                // Limit to first 5 checkpoints for better readability
-                int maxCheckpoints = Math.min(route.roadNames.size(), 5);
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < maxCheckpoints; i++) {
-                    if (i > 0) sb.append(" → ");
-                    sb.append(route.roadNames.get(i));
-                }
-                if (route.roadNames.size() > maxCheckpoints) {
-                    sb.append(" → ... (").append(route.roadNames.size() - maxCheckpoints).append(" checkpoint lainnya)");
-                }
-                pathInfo = sb.toString();
+                pathInfo.append("Rute langsung");
             }
             
-            logger.info("Showing info dialog...");
+            logger.info("Showing route info dialog...");
+            
+            // Build warning HTML if route passes closed roads
+            String warningHtml = "";
+            if (!closedRoadWarnings.isEmpty()) {
+                warningHtml = "<div style='background: #fff3e0; padding: 10px; border-left: 4px solid #ff9800; margin-top: 10px;'>";
+                warningHtml += "<p style='color: #e65100; font-weight: bold; margin: 0;'>⚠️ PERINGATAN:</p>";
+                for (String warning : closedRoadWarnings) {
+                    warningHtml += "<p style='color: #d84315; margin: 5px 0;'>- " + warning + "</p>";
+                }
+                warningHtml += "</div>";
+            }
+            
+            String statusColor = closedRoadWarnings.isEmpty() ? "#2e7d32" : "#f57c00";
+            String statusIcon = closedRoadWarnings.isEmpty() ? "✅" : "⚠️";
+            String statusText = closedRoadWarnings.isEmpty() ? 
+                "Rute aman, tidak melewati jalan tertutup" : 
+                "Rute mungkin melewati jalan tertutup - gunakan rute alternatif";
             
             JOptionPane.showMessageDialog(this,
                 String.format(
-                    "<html><body style='font-family: Times New Roman; padding: 10px; width: 400px;'>" +
-                    "<h3 style='color: #388860;'>🗺️ Informasi Rute (Google Maps)</h3>" +
+                    "<html><body style='font-family: Times New Roman; padding: 10px; width: 480px;'>" +
+                    "<h3 style='color: #388860;'>🗺️ Rute dari Google Maps</h3>" +
                     "<p><b>Dari:</b> %s</p>" +
                     "<p><b>Ke:</b> %s</p>" +
                     "<p><b>Jarak:</b> %.2f km</p>" +
                     "<p><b>Estimasi Waktu:</b> %d menit (jalan kaki)</p>" +
-                    "<p><b>Rute:</b> %s</p>" +
-                    "<p style='color: #0066cc; margin-top: 10px;'><i>✅ Rute mengikuti jalan sebenarnya dari Google Maps</i></p>" +
+                    "<p><b>Melewati:</b> %s</p>" +
+                    "%s" +
+                    "<p style='color: %s; margin-top: 10px;'><b>%s %s</b></p>" +
                     "</body></html>",
-                    startName, endName, route.distanceKm, route.durationMinutes, pathInfo
+                    startName, endName, route.distanceKm, route.durationMinutes, 
+                    pathInfo.toString(), warningHtml, statusColor, statusIcon, statusText
                 ),
-                "Info Rute Google Maps",
-                JOptionPane.INFORMATION_MESSAGE);
+                "Info Rute",
+                closedRoadWarnings.isEmpty() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
             
             // Force another repaint after dialog closes
             logger.info("Dialog closed, forcing final repaint...");
@@ -907,6 +896,204 @@ public class MapFrame extends javax.swing.JFrame {
      * Calculate distance between two GeoPositions using Haversine formula
      * @return distance in kilometers
      */
+    /**
+     * Check if route passes through any closed roads and return warnings
+     */
+    private List<String> checkRouteForClosedRoads(List<GeoPosition> polyline) {
+        List<String> warnings = new ArrayList<>();
+        
+        if (activeClosures.isEmpty()) {
+            return warnings;
+        }
+        
+        // Get all closed road IDs
+        Set<Integer> closedRoadIds = new HashSet<>();
+        for (RoadClosure closure : activeClosures) {
+            closedRoadIds.add(closure.getRoadId());
+        }
+        
+        // Fetch roads from database
+        RoadDAO roadDAO = new RoadDAO();
+        List<Road> allRoads = roadDAO.getAllRoads();
+        
+        // Find closed roads
+        Set<String> warnedRoads = new HashSet<>();
+        for (Road road : allRoads) {
+            if (!closedRoadIds.contains(road.getRoadId()) && 
+                road.getRoadType() != Road.RoadType.CLOSED) {
+                continue;
+            }
+            
+            // Check if any polyline point is near this closed road
+            for (GeoPosition point : polyline) {
+                double dist = getDistanceToRoadSegment(
+                    point.getLatitude(), point.getLongitude(),
+                    road.getStartLat(), road.getStartLng(),
+                    road.getEndLat(), road.getEndLng()
+                );
+                
+                if (dist < 0.03 && !warnedRoads.contains(road.getRoadName())) { // 30 meters
+                    warnings.add("Rute melewati jalan tertutup: " + road.getRoadName());
+                    warnedRoads.add(road.getRoadName());
+                    break;
+                }
+            }
+        }
+        
+        return warnings;
+    }
+    
+    /**
+     * Filter Google Maps route polyline untuk skip segments yang melewati jalan tertutup
+     * @param polyline Original polyline from Google Maps
+     * @param warnings List untuk collect warning messages
+     * @return Filtered polyline (bisa sama dengan original jika tidak ada jalan tertutup)
+     */
+    private List<GeoPosition> filterRouteByClosedRoads(List<GeoPosition> polyline, List<String> warnings) {
+        if (activeClosures.isEmpty()) {
+            // No closures, return original path
+            return new ArrayList<>(polyline);
+        }
+        
+        // Get all closed road IDs
+        Set<Integer> closedRoadIds = new HashSet<>();
+        for (RoadClosure closure : activeClosures) {
+            closedRoadIds.add(closure.getRoadId());
+        }
+        
+        // Fetch all roads from database to check coordinates
+        RoadDAO roadDAO = new RoadDAO();
+        List<Road> allRoads = roadDAO.getAllRoads();
+        
+        // Get all roads that are closed
+        List<Road> closedRoads = new ArrayList<>();
+        for (Road road : allRoads) {
+            if (closedRoadIds.contains(road.getRoadId()) || 
+                road.getRoadType() == Road.RoadType.CLOSED) {
+                closedRoads.add(road);
+            }
+        }
+        
+        if (closedRoads.isEmpty()) {
+            return new ArrayList<>(polyline);
+        }
+        
+        List<GeoPosition> filteredPath = new ArrayList<>();
+        Set<String> warnedRoads = new HashSet<>(); // Track which roads we already warned about
+        int skippedSegments = 0;
+        
+        // Check each segment of polyline
+        for (int i = 0; i < polyline.size(); i++) {
+            GeoPosition point = polyline.get(i);
+            
+            // Check if this point is near any closed road
+            boolean nearClosedRoad = false;
+            String closedRoadName = "";
+            
+            for (Road road : closedRoads) {
+                // Check if point is close to this closed road (within 50 meters)
+                double distanceToRoad = getDistanceToRoadSegment(
+                    point.getLatitude(), point.getLongitude(),
+                    road.getStartLat(), road.getStartLng(),
+                    road.getEndLat(), road.getEndLng()
+                );
+                
+                if (distanceToRoad < 0.05) { // 50 meters threshold in km
+                    nearClosedRoad = true;
+                    closedRoadName = road.getRoadName();
+                    break;
+                }
+            }
+            
+            if (nearClosedRoad) {
+                // Skip this point (don't add to filtered path)
+                skippedSegments++;
+                
+                // Add warning if not already added for this road
+                if (!warnedRoads.contains(closedRoadName)) {
+                    warnings.add("Rute melewati jalan tertutup: " + closedRoadName);
+                    warnedRoads.add(closedRoadName);
+                }
+            } else {
+                // Keep this point
+                filteredPath.add(point);
+            }
+        }
+        
+        if (skippedSegments > 0) {
+            logger.warning("⚠️ Filtered out " + skippedSegments + " points near closed roads");
+        }
+        
+        // If filter removed too many points, return original to avoid broken route
+        if (filteredPath.size() < polyline.size() / 2) {
+            logger.warning("⚠️ Filter removed too many points (" + filteredPath.size() + "/" + polyline.size() + "), using original route");
+            warnings.add("Filter terlalu agresif, menampilkan rute asli dengan warning");
+            return new ArrayList<>(polyline);
+        }
+        
+        return filteredPath;
+    }
+    
+    /**
+     * Calculate distance from point to line segment (road)
+     * Uses perpendicular distance formula
+     */
+    private double getDistanceToRoadSegment(double pointLat, double pointLng,
+                                           double roadStartLat, double roadStartLng,
+                                           double roadEndLat, double roadEndLng) {
+        // Convert to simple distance for rough check
+        // More accurate: use point-to-line-segment distance formula
+        
+        // Distance from point to start of road
+        double distToStart = haversineDistance(pointLat, pointLng, roadStartLat, roadStartLng);
+        
+        // Distance from point to end of road
+        double distToEnd = haversineDistance(pointLat, pointLng, roadEndLat, roadEndLng);
+        
+        // Length of road segment
+        double roadLength = haversineDistance(roadStartLat, roadStartLng, roadEndLat, roadEndLng);
+        
+        // If road is very short, use minimum of distToStart and distToEnd
+        if (roadLength < 0.001) { // Less than 1 meter
+            return Math.min(distToStart, distToEnd);
+        }
+        
+        // Check if point projection falls on the road segment
+        // Using dot product to find projection point
+        double t = ((pointLat - roadStartLat) * (roadEndLat - roadStartLat) + 
+                   (pointLng - roadStartLng) * (roadEndLng - roadStartLng)) /
+                  (Math.pow(roadEndLat - roadStartLat, 2) + Math.pow(roadEndLng - roadStartLng, 2));
+        
+        if (t < 0) {
+            // Closest to start point
+            return distToStart;
+        } else if (t > 1) {
+            // Closest to end point
+            return distToEnd;
+        } else {
+            // Closest to somewhere on the segment
+            double projLat = roadStartLat + t * (roadEndLat - roadStartLat);
+            double projLng = roadStartLng + t * (roadEndLng - roadStartLng);
+            return haversineDistance(pointLat, pointLng, projLat, projLng);
+        }
+    }
+    
+    /**
+     * Haversine distance calculation between two lat/lng points
+     */
+    private double haversineDistance(double lat1, double lng1, double lat2, double lng2) {
+        final double R = 6371; // Earth radius in km
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                   Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        
+        return R * c;
+    }
+    
     private double calculateDistance(GeoPosition pos1, GeoPosition pos2) {
         final double R = 6371; // Earth radius in km
         double lat1 = Math.toRadians(pos1.getLatitude());
@@ -1370,13 +1557,15 @@ public class MapFrame extends javax.swing.JFrame {
 
     private void logout() {
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Apakah Anda yakin ingin kembali?",
+                "Apakah Anda yakin ingin kembali ke halaman utama?",
                 "Konfirmasi",
                 JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            dispose();
-            System.exit(0);
+            this.dispose();
+            
+            // Return to welcome screen (halaman hijau)
+            PETA_USU.main(new String[]{});
         }
     }
     

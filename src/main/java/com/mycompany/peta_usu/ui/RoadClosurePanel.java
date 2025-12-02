@@ -10,6 +10,8 @@ import java.awt.*;
 import java.awt.geom.*;
 import java.sql.Date;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.ArrayList;
 import org.jxmapviewer.JXMapViewer;
 import org.jxmapviewer.input.PanMouseInputListener;
 import org.jxmapviewer.input.ZoomMouseWheelListenerCursor;
@@ -127,38 +129,111 @@ public class RoadClosurePanel extends JPanel {
                 
                 // Draw all roads with closure status colors
                 for (Road road : allRoads) {
-                    // Determine color based on closure status
+                    // Determine color based on closure status and road type
                     Color roadColor = getRoadColor(road);
                     g.setColor(roadColor);
                     g.setStroke(new BasicStroke(4.0f));
                     
-                    // Convert geo coordinates to screen coordinates
-                    GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
-                    GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
-                    
-                    Point2D startPoint = map.getTileFactory().geoToPixel(start, map.getZoom());
-                    Point2D endPoint = map.getTileFactory().geoToPixel(end, map.getZoom());
-                    
-                    Rectangle viewportBounds = map.getViewportBounds();
-                    
-                    int x1 = (int) (startPoint.getX() - viewportBounds.getX());
-                    int y1 = (int) (startPoint.getY() - viewportBounds.getY());
-                    int x2 = (int) (endPoint.getX() - viewportBounds.getX());
-                    int y2 = (int) (endPoint.getY() - viewportBounds.getY());
-                    
-                    // Draw road line
-                    g.drawLine(x1, y1, x2, y2);
-                    
-                    // Draw arrow for one-way streets
-                    if (isOneWay(road)) {
-                        drawArrow(g, x1, y1, x2, y2);
+                    // Check if road has polyline data
+                    if (road.getPolylinePoints() != null && !road.getPolylinePoints().isEmpty()) {
+                        // Draw using polyline (following actual road)
+                        drawPolyline(g, map, road.getPolylinePoints());
+                    } else {
+                        // Fallback: Draw straight line
+                        GeoPosition start = new GeoPosition(road.getStartLat(), road.getStartLng());
+                        GeoPosition end = new GeoPosition(road.getEndLat(), road.getEndLng());
+                        
+                        Point2D startPoint = map.getTileFactory().geoToPixel(start, map.getZoom());
+                        Point2D endPoint = map.getTileFactory().geoToPixel(end, map.getZoom());
+                        
+                        Rectangle viewportBounds = map.getViewportBounds();
+                        
+                        int x1 = (int) (startPoint.getX() - viewportBounds.getX());
+                        int y1 = (int) (startPoint.getY() - viewportBounds.getY());
+                        int x2 = (int) (endPoint.getX() - viewportBounds.getX());
+                        int y2 = (int) (endPoint.getY() - viewportBounds.getY());
+                        
+                        g.drawLine(x1, y1, x2, y2);
+                        
+                        // Draw arrow for one-way streets
+                        if (isOneWay(road)) {
+                            drawArrow(g, x1, y1, x2, y2);
+                        }
                     }
                 }
             }
         };
     }
     
+    /**
+     * Draw polyline on map using encoded polyline string
+     */
+    private void drawPolyline(Graphics2D g, JXMapViewer map, String encodedPolyline) {
+        try {
+            List<GeoPosition> points = decodePolyline(encodedPolyline);
+            if (points.size() < 2) return;
+            
+            Rectangle viewportBounds = map.getViewportBounds();
+            
+            for (int i = 0; i < points.size() - 1; i++) {
+                GeoPosition p1 = points.get(i);
+                GeoPosition p2 = points.get(i + 1);
+                
+                Point2D point1 = map.getTileFactory().geoToPixel(p1, map.getZoom());
+                Point2D point2 = map.getTileFactory().geoToPixel(p2, map.getZoom());
+                
+                int x1 = (int) (point1.getX() - viewportBounds.getX());
+                int y1 = (int) (point1.getY() - viewportBounds.getY());
+                int x2 = (int) (point2.getX() - viewportBounds.getX());
+                int y2 = (int) (point2.getY() - viewportBounds.getY());
+                
+                g.drawLine(x1, y1, x2, y2);
+            }
+        } catch (Exception e) {
+            System.err.println("Error drawing polyline: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Decode Google Maps encoded polyline
+     */
+    private List<GeoPosition> decodePolyline(String encoded) {
+        List<GeoPosition> points = new ArrayList<>();
+        int index = 0, len = encoded.length();
+        int lat = 0, lng = 0;
+        
+        while (index < len) {
+            int b, shift = 0, result = 0;
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+            
+            shift = 0;
+            result = 0;
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+            
+            points.add(new GeoPosition(lat / 1E5, lng / 1E5));
+        }
+        
+        return points;
+    }
+    
     private Color getRoadColor(Road road) {
+        // Check road type first (CLOSED type = always red)
+        if (road.getRoadType() == Road.RoadType.CLOSED) {
+            return new Color(220, 20, 60); // Red - CLOSED type
+        }
+        
         // Check if road has active closure
         for (RoadClosure closure : currentClosures) {
             if (closure.getRoadId() == road.getRoadId() && closure.isActive()) {
@@ -172,6 +247,12 @@ public class RoadClosurePanel extends JPanel {
                 }
             }
         }
+        
+        // Check road type for ONE_WAY
+        if (road.getRoadType() == Road.RoadType.ONE_WAY) {
+            return new Color(30, 144, 255); // Blue - ONE_WAY type
+        }
+        
         // Default: normal road (black)
         return Color.BLACK;
     }
@@ -474,10 +555,134 @@ public class RoadClosurePanel extends JPanel {
             return;
         }
         
-        JOptionPane.showMessageDialog(this, 
-            "Fitur edit akan segera ditambahkan", 
-            "Info", 
-            JOptionPane.INFORMATION_MESSAGE);
+        // Get closure data from table
+        int closureId = (int) tableModel.getValueAt(selectedRow, 0);
+        String roadName = (String) tableModel.getValueAt(selectedRow, 1);
+        String type = (String) tableModel.getValueAt(selectedRow, 2);
+        String reason = (String) tableModel.getValueAt(selectedRow, 3);
+        String startDate = tableModel.getValueAt(selectedRow, 4).toString();
+        String endDate = tableModel.getValueAt(selectedRow, 5).toString();
+        
+        // Create edit dialog
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+            "Edit Penutupan Jalan", true);
+        dialog.setSize(450, 400);
+        dialog.setLocationRelativeTo(this);
+        
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        // Nama Jalan (readonly display)
+        gbc.gridx = 0; gbc.gridy = 0;
+        panel.add(new JLabel("Nama Jalan:"), gbc);
+        gbc.gridx = 1;
+        JTextField txtRoadName = new JTextField(roadName);
+        txtRoadName.setEditable(false);
+        txtRoadName.setBackground(Color.LIGHT_GRAY);
+        panel.add(txtRoadName, gbc);
+        
+        // Closure Type
+        gbc.gridx = 0; gbc.gridy = 1;
+        panel.add(new JLabel("Tipe:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> cboType = new JComboBox<>(new String[]{
+            "Sementara", "Permanen", "Satu Arah"
+        });
+        cboType.setSelectedItem(type);
+        panel.add(cboType, gbc);
+        
+        // Reason
+        gbc.gridx = 0; gbc.gridy = 2;
+        panel.add(new JLabel("Alasan:"), gbc);
+        gbc.gridx = 1;
+        JTextArea txtReason = new JTextArea(reason, 3, 20);
+        txtReason.setLineWrap(true);
+        panel.add(new JScrollPane(txtReason), gbc);
+        
+        // Start Date
+        gbc.gridx = 0; gbc.gridy = 3;
+        panel.add(new JLabel("Tanggal Mulai:"), gbc);
+        gbc.gridx = 1;
+        JTextField txtStartDate = new JTextField(startDate);
+        panel.add(txtStartDate, gbc);
+        
+        // End Date
+        gbc.gridx = 0; gbc.gridy = 4;
+        panel.add(new JLabel("Tanggal Selesai:"), gbc);
+        gbc.gridx = 1;
+        JTextField txtEndDate = new JTextField(endDate);
+        panel.add(txtEndDate, gbc);
+        
+        // Buttons
+        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.gridwidth = 2;
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        
+        JButton btnSave = new JButton("Simpan");
+        btnSave.setBackground(new Color(76, 175, 80));
+        btnSave.setForeground(Color.WHITE);
+        btnSave.addActionListener(e -> {
+            try {
+                RoadClosure closure = closureDAO.getClosureById(closureId);
+                if (closure == null) {
+                    JOptionPane.showMessageDialog(dialog, "Data penutupan tidak ditemukan!");
+                    return;
+                }
+                
+                String selectedType = (String) cboType.getSelectedItem();
+                RoadClosure.ClosureType closureType;
+                switch (selectedType) {
+                    case "Sementara":
+                        closureType = RoadClosure.ClosureType.TEMPORARY;
+                        break;
+                    case "Permanen":
+                        closureType = RoadClosure.ClosureType.PERMANENT;
+                        break;
+                    case "Satu Arah":
+                        closureType = RoadClosure.ClosureType.ONE_WAY;
+                        break;
+                    default:
+                        closureType = RoadClosure.ClosureType.TEMPORARY;
+                }
+                closure.setClosureType(closureType);
+                closure.setReason(txtReason.getText());
+                closure.setStartDate(Date.valueOf(txtStartDate.getText()));
+                closure.setEndDate(Date.valueOf(txtEndDate.getText()));
+                
+                if (closureDAO.updateClosure(closure)) {
+                    JOptionPane.showMessageDialog(dialog, 
+                        "Penutupan jalan berhasil diupdate!", 
+                        "Sukses", 
+                        JOptionPane.INFORMATION_MESSAGE);
+                    dialog.dispose();
+                    loadClosures();
+                } else {
+                    JOptionPane.showMessageDialog(dialog, 
+                        "Gagal mengupdate penutupan jalan", 
+                        "Error", 
+                        JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, 
+                    "Input tidak valid: " + ex.getMessage(), 
+                    "Error", 
+                    JOptionPane.ERROR_MESSAGE);
+                ex.printStackTrace();
+            }
+        });
+        
+        JButton btnCancel = new JButton("Batal");
+        btnCancel.addActionListener(e -> dialog.dispose());
+        
+        btnPanel.add(btnSave);
+        btnPanel.add(btnCancel);
+        panel.add(btnPanel, gbc);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
     }
     
     private void deleteSelectedClosure() {
