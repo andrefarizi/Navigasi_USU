@@ -17,10 +17,8 @@ import java.util.logging.Logger;
 public class MarkerDAO {
     
     private static final Logger logger = Logger.getLogger(MarkerDAO.class.getName());
-    private final Connection connection;
     
     public MarkerDAO() {
-        this.connection = DatabaseConnection.getInstance().getConnection();
     }
     
     /**
@@ -30,7 +28,8 @@ public class MarkerDAO {
         List<Marker> markers = new ArrayList<>();
         String sql = "SELECT * FROM markers WHERE is_active = TRUE ORDER BY marker_name";
         
-        try (Statement stmt = connection.createStatement();
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
@@ -51,7 +50,8 @@ public class MarkerDAO {
         List<Marker> markers = new ArrayList<>();
         String sql = "SELECT * FROM markers WHERE marker_type = ? AND is_active = TRUE ORDER BY marker_name";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, markerType);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -73,7 +73,8 @@ public class MarkerDAO {
     public Marker getMarkerById(int markerId) {
         String sql = "SELECT * FROM markers WHERE marker_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, markerId);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -97,7 +98,8 @@ public class MarkerDAO {
                     "longitude, icon_path, icon_name, created_by, is_active) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, marker.getMarkerName());
             pstmt.setString(2, marker.getMarkerType());
             pstmt.setString(3, marker.getDescription());
@@ -133,7 +135,8 @@ public class MarkerDAO {
     public boolean updateMarkerPosition(int markerId, double latitude, double longitude) {
         String sql = "UPDATE markers SET latitude = ?, longitude = ? WHERE marker_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setDouble(1, latitude);
             pstmt.setDouble(2, longitude);
             pstmt.setInt(3, markerId);
@@ -160,7 +163,8 @@ public class MarkerDAO {
                     "latitude = ?, longitude = ?, icon_path = ?, icon_name = ?, is_active = ? " +
                     "WHERE marker_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, marker.getMarkerName());
             pstmt.setString(2, marker.getMarkerType());
             pstmt.setString(3, marker.getDescription());
@@ -191,7 +195,8 @@ public class MarkerDAO {
     public boolean deleteMarker(int markerId) {
         String sql = "UPDATE markers SET is_active = FALSE WHERE marker_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, markerId);
             
             int affectedRows = pstmt.executeUpdate();
@@ -214,7 +219,8 @@ public class MarkerDAO {
     public boolean permanentDeleteMarker(int markerId) {
         String sql = "DELETE FROM markers WHERE marker_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, markerId);
             
             int affectedRows = pstmt.executeUpdate();

@@ -17,10 +17,8 @@ import java.util.logging.Logger;
 public class RoadClosureDAO {
     
     private static final Logger logger = Logger.getLogger(RoadClosureDAO.class.getName());
-    private final Connection connection;
     
     public RoadClosureDAO() {
-        this.connection = DatabaseConnection.getInstance().getConnection();
     }
     
     /**
@@ -36,7 +34,8 @@ public class RoadClosureDAO {
                     "AND (rc.end_date IS NULL OR rc.end_date >= CURDATE()) " +
                     "ORDER BY rc.created_at DESC";
         
-        try (Statement stmt = connection.createStatement();
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
@@ -60,7 +59,8 @@ public class RoadClosureDAO {
                     "LEFT JOIN users u ON rc.created_by = u.user_id " +
                     "WHERE rc.closure_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, closureId);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -84,7 +84,8 @@ public class RoadClosureDAO {
                     "end_date, start_time, end_time, is_active, created_by) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setInt(1, closure.getRoadId());
             pstmt.setString(2, closure.getClosureType().getValue());
             pstmt.setString(3, closure.getReason());
@@ -122,7 +123,8 @@ public class RoadClosureDAO {
                     "start_date = ?, end_date = ?, start_time = ?, end_time = ?, is_active = ? " +
                     "WHERE closure_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, closure.getRoadId());
             pstmt.setString(2, closure.getClosureType().getValue());
             pstmt.setString(3, closure.getReason());
@@ -153,7 +155,8 @@ public class RoadClosureDAO {
     public boolean deleteClosure(int closureId) {
         String sql = "UPDATE road_closures SET is_active = FALSE WHERE closure_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, closureId);
             
             int affectedRows = pstmt.executeUpdate();
@@ -181,7 +184,8 @@ public class RoadClosureDAO {
                     "LEFT JOIN users u ON rc.created_by = u.user_id " +
                     "WHERE rc.closure_type = ? AND rc.is_active = TRUE";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, type.getValue());
             
             try (ResultSet rs = pstmt.executeQuery()) {
