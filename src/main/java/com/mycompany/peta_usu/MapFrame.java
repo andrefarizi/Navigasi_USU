@@ -65,6 +65,14 @@ public class MapFrame extends javax.swing.JFrame {
     private JPanel infoPanel; // Left sidebar untuk info gedung
     private CustomWaypoint selectedWaypoint; // Waypoint yang diklik
     
+    // User position marker
+    private GeoPosition userPosition;
+    private boolean isDraggingUserMarker = false;
+    private static final String USER_MARKER_NAME = "📍 Posisi Saya";
+    
+    // Pan listener reference to preserve it when removing other listeners
+    private PanMouseInputListener panListener;
+    
     // Responsive layout components
     private JPanel mainPanel;
     private JPanel centerContainer;
@@ -112,6 +120,12 @@ public class MapFrame extends javax.swing.JFrame {
         this.roads = new ArrayList<>();
         this.activeClosures = new ArrayList<>();
         this.closureMap = new HashMap<>();
+        
+        // Initialize user position at USU center
+        this.userPosition = new GeoPosition(3.5688, 98.6618);
+        
+        // Register this MapFrame for auto-refresh when admin adds markers
+        com.mycompany.peta_usu.utils.MapRefreshUtil.registerMapFrame(this);
         
         showLoadingDialog();
         
@@ -335,14 +349,9 @@ public class MapFrame extends javax.swing.JFrame {
         titleLabel.setFont(new Font("Times New Roman", Font.BOLD, 20)); 
         titleLabel.setForeground(Color.WHITE);
 
-        JLabel nimLabel = new JLabel("NIM: " + studentNim);
-        nimLabel.setFont(new Font("Times New Roman", Font.PLAIN, 12)); 
-        nimLabel.setForeground(Color.WHITE);
-
         JPanel textPanel = new JPanel(new BorderLayout());
         textPanel.setOpaque(false);
         textPanel.add(titleLabel, BorderLayout.CENTER);
-        textPanel.add(nimLabel, BorderLayout.SOUTH);
 
         JButton logoutButton = new JButton("Logout");
         logoutButton.setBackground(Color.WHITE);
@@ -497,14 +506,15 @@ public class MapFrame extends javax.swing.JFrame {
         JLabel iconTujuan = new JLabel("🎯");
         iconTujuan.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
 
-        // Populate location list from database (buildings + markers)
+        // Populate location list from database (buildings + markers + user position)
         List<String> lokasiUSU = new ArrayList<>();
+        lokasiUSU.add(USER_MARKER_NAME); // Add user position first
         synchronized (waypoints) {
             for (CustomWaypoint wp : waypoints) {
                 lokasiUSU.add(wp.getName());
             }
         }
-        java.util.Collections.sort(lokasiUSU); // Sort alphabetically
+        // Don't sort - keep user position first
 
         titikAwalCombo = createSearchableComboBox(lokasiUSU);
         titikAwalCombo.setPreferredSize(new Dimension(200, 30)); // Smaller for mobile
@@ -579,9 +589,31 @@ public class MapFrame extends javax.swing.JFrame {
         mapViewer.setZoom(3);
         mapViewer.setAddressLocation(usu);
 
-        MouseAdapter pan = new PanMouseInputListener(mapViewer);
-        mapViewer.addMouseListener(pan);
-        mapViewer.addMouseMotionListener(pan);
+        // Custom pan listener that respects isDraggingUserMarker flag
+        panListener = new PanMouseInputListener(mapViewer) {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!isDraggingUserMarker) {
+                    super.mousePressed(e);
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (!isDraggingUserMarker) {
+                    super.mouseReleased(e);
+                }
+            }
+            
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (!isDraggingUserMarker) {
+                    super.mouseDragged(e);
+                }
+            }
+        };
+        mapViewer.addMouseListener(panListener);
+        mapViewer.addMouseMotionListener(panListener);
         
         final int MIN_OUT_ZOOM = 1;
         final int MIN_IN_ZOOM  = 0; 
@@ -629,7 +661,7 @@ public class MapFrame extends javax.swing.JFrame {
 
         // Legenda akan di-load oleh refreshLegend() setelah markers dimuat
         // Tampilkan loading placeholder
-        addLegendItem(legendPanel, "⏳", "Memuat...", PRIMARY_GREEN);
+        addLegendItem(legendPanel, "⏳", "Memuat...", PRIMARY_GREEN, null);
 
         panel.add(legendPanel);
         panel.add(Box.createRigidArea(new Dimension(0, 15)));
@@ -646,6 +678,45 @@ public class MapFrame extends javax.swing.JFrame {
         btnReport.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnReport.addActionListener(e -> showReportDialog());
         panel.add(btnReport);
+        panel.add(Box.createRigidArea(new Dimension(0, 10)));
+        
+        // Tombol Refresh/Reset Rute
+        JButton btnRefresh = new JButton("🔄 Reset Rute");
+        btnRefresh.setFont(new Font("Times New Roman", Font.BOLD, 12));
+        btnRefresh.setBackground(new Color(76, 175, 80)); // Green
+        btnRefresh.setForeground(Color.WHITE);
+        btnRefresh.setFocusPainted(false);
+        btnRefresh.setBorderPainted(false);
+        btnRefresh.setOpaque(true);
+        btnRefresh.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        btnRefresh.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnRefresh.setToolTipText("Reset titik awal dan tujuan, hapus rute dari peta");
+        
+        btnRefresh.addMouseListener(new MouseAdapter() {
+            @Override 
+            public void mouseEntered(MouseEvent e) { 
+                btnRefresh.setBackground(new Color(102, 187, 106)); 
+            }
+            @Override 
+            public void mouseExited(MouseEvent e) { 
+                btnRefresh.setBackground(new Color(76, 175, 80)); 
+            }
+        });
+        
+        btnRefresh.addActionListener(e -> {
+            // Close current window
+            this.dispose();
+            
+            // Create and show new MapFrame (full refresh)
+            SwingUtilities.invokeLater(() -> {
+                MapFrame newFrame = new MapFrame("user");
+                newFrame.setVisible(true);
+            });
+            
+            logger.info("MapFrame refreshed - new instance created");
+        });
+        
+        panel.add(btnRefresh);
         
         return panel;
     }
@@ -709,12 +780,51 @@ public class MapFrame extends javax.swing.JFrame {
     }
     
     private void addLegendItem(JPanel panel, String icon, String text, Color color) {
+        addLegendItem(panel, icon, text, color, null);
+    }
+    
+    /**
+     * Add legend item dengan support untuk gambar icon
+     * @param panel Panel target
+     * @param icon Icon emoji (fallback)
+     * @param text Nama/label
+     * @param color Warna (untuk fallback)
+     * @param iconPath Path ke file icon gambar
+     */
+    private void addLegendItem(JPanel panel, String icon, String text, Color color, String iconPath) {
         JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         item.setBackground(Color.WHITE);
-        item.setMaximumSize(new Dimension(250, 35));
-        item.setPreferredSize(new Dimension(250, 30));
+        item.setMaximumSize(new Dimension(250, 40));
+        item.setPreferredSize(new Dimension(250, 35));
 
-        // Color box sebagai icon visual
+        // Coba load gambar icon jika iconPath tersedia
+        if (iconPath != null && !iconPath.isEmpty()) {
+            try {
+                File iconFile = new File(iconPath);
+                if (iconFile.exists()) {
+                    BufferedImage iconImg = ImageIO.read(iconFile);
+                    // Resize ke ukuran yang sesuai untuk legenda (24x24)
+                    Image scaledIcon = iconImg.getScaledInstance(24, 24, Image.SCALE_SMOOTH);
+                    JLabel iconLabel = new JLabel(new ImageIcon(scaledIcon));
+                    iconLabel.setPreferredSize(new Dimension(24, 24));
+                    item.add(iconLabel);
+                    
+                    // Text dengan font yang jelas dan NAMA LENGKAP
+                    JLabel textLabel = new JLabel(text);
+                    textLabel.setFont(new Font("Arial", Font.BOLD, 14));
+                    textLabel.setForeground(new Color(51, 51, 51));
+                    item.add(textLabel);
+                    
+                    panel.add(item);
+                    return; // Berhasil tampilkan gambar icon
+                }
+            } catch (Exception e) {
+                logger.warning("Gagal load icon untuk legenda: " + iconPath + " - " + e.getMessage());
+                // Fall through ke default rendering
+            }
+        }
+        
+        // Fallback: Color box sebagai icon visual (jika gambar tidak tersedia)
         JPanel colorBox = new JPanel();
         colorBox.setBackground(color);
         colorBox.setPreferredSize(new Dimension(16, 16));
@@ -740,18 +850,23 @@ public class MapFrame extends javax.swing.JFrame {
             legendPanel.removeAll();
             
             try {
-                // Tidak perlu map, langsung render dari markers yang sudah unique
-                java.util.Set<String> addedTypes = new java.util.HashSet<>();
+                // Map untuk group by icon path (bukan marker type)
+                java.util.Map<String, Marker> uniqueMarkers = new java.util.LinkedHashMap<>();
                 
-                // Ambil marker dari database dan tampilkan icon + nama pendek
+                // Group markers by icon path untuk avoid duplicates
                 for (Marker marker : markers) {
+                    String iconPath = marker.getIconPath();
+                    if (iconPath != null && !iconPath.isEmpty() && !uniqueMarkers.containsKey(iconPath)) {
+                        uniqueMarkers.put(iconPath, marker);
+                    }
+                }
+                
+                // Tampilkan GAMBAR ICON + nama untuk setiap unique icon
+                for (Marker marker : uniqueMarkers.values()) {
                     String markerType = marker.getMarkerType();
-                    
-                    // Skip jika type sudah ditambahkan (unique types only)
-                    if (markerType != null && !addedTypes.contains(markerType)) {
-                        addedTypes.add(markerType);
                         
                         String iconName = marker.getIconName();
+                        String iconPath = marker.getIconPath();
                         
                         // Gunakan iconName jika ada (emoji), atau extract dari iconPath
                         String icon = "📍"; // Default
@@ -759,7 +874,6 @@ public class MapFrame extends javax.swing.JFrame {
                             icon = iconName;
                         } else {
                             // Fallback ke iconPath
-                            String iconPath = marker.getIconPath();
                             if (iconPath != null && !iconPath.isEmpty()) {
                                 if (iconPath.contains("stadium")) icon = "⚽";
                                 else if (iconPath.contains("fakultas")) icon = "🎓";
@@ -779,20 +893,18 @@ public class MapFrame extends javax.swing.JFrame {
                             displayName = formatMarkerTypeName(markerType);
                         }
                         
-                        // Tampilkan nama LENGKAP, tidak dipotong
-                        // (panel sudah cukup lebar untuk menampung)
-                        
-                        addLegendItem(legendPanel, icon, displayName, PRIMARY_GREEN);
-                    }
+                    // Tampilkan nama LENGKAP dengan GAMBAR ICON (bukan tulisan)
+                    // Pass iconPath untuk ditampilkan sebagai gambar
+                    addLegendItem(legendPanel, icon, displayName, PRIMARY_GREEN, marker.getIconPath());
                 }
                 
                 // Jika tidak ada marker dari database, gunakan default
-                if (addedTypes.isEmpty()) {
-                    addLegendItem(legendPanel, "📍", "Lokasi", PRIMARY_GREEN);
+                if (uniqueMarkers.isEmpty()) {
+                    addLegendItem(legendPanel, "📍", "Lokasi", PRIMARY_GREEN, null);
                 }
             } catch (Exception e) {
                 logger.warning("Gagal refresh legenda: " + e.getMessage());
-                addLegendItem(legendPanel, "📍", "Lokasi", PRIMARY_GREEN);
+                addLegendItem(legendPanel, "📍", "Lokasi", PRIMARY_GREEN, null);
             }
             
             legendPanel.revalidate();
@@ -828,22 +940,39 @@ public class MapFrame extends javax.swing.JFrame {
      */
     private void calculateAndShowRoute(String startName, String endName) {
         try {
-            // Find start and end positions from waypoints
-            CustomWaypoint start = null;
-            CustomWaypoint end = null;
+            // Find start and end positions from waypoints or user position
+            GeoPosition startPos = null;
+            GeoPosition endPos = null;
             
-            synchronized (waypoints) {
-                for (CustomWaypoint wp : waypoints) {
-                    if (wp.getName().equalsIgnoreCase(startName)) {
-                        start = wp;
-                    }
-                    if (wp.getName().equalsIgnoreCase(endName)) {
-                        end = wp;
+            // Check if start is user position
+            if (startName.equals(USER_MARKER_NAME)) {
+                startPos = userPosition;
+            } else {
+                synchronized (waypoints) {
+                    for (CustomWaypoint wp : waypoints) {
+                        if (wp.getName().equalsIgnoreCase(startName)) {
+                            startPos = wp.getPosition();
+                            break;
+                        }
                     }
                 }
             }
             
-            if (start == null || end == null) {
+            // Check if end is user position
+            if (endName.equals(USER_MARKER_NAME)) {
+                endPos = userPosition;
+            } else {
+                synchronized (waypoints) {
+                    for (CustomWaypoint wp : waypoints) {
+                        if (wp.getName().equalsIgnoreCase(endName)) {
+                            endPos = wp.getPosition();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (startPos == null || endPos == null) {
                 JOptionPane.showMessageDialog(this,
                     "Lokasi tidak ditemukan di map!",
                     "Error",
@@ -852,8 +981,8 @@ public class MapFrame extends javax.swing.JFrame {
             }
             
             // Set start and end positions
-            startPosition = start.getPosition();
-            endPosition = end.getPosition();
+            startPosition = startPos;
+            endPosition = endPos;
             
             logger.info("=== STARTING ROUTE CALCULATION ===");
             logger.info("From: " + startName + " (" + startPosition.getLatitude() + "," + startPosition.getLongitude() + ")");
@@ -1264,6 +1393,9 @@ public class MapFrame extends javax.swing.JFrame {
         SwingUtilities.invokeLater(() -> {
             List<String> lokasiUSU = new ArrayList<>();
             
+            // Add user position FIRST
+            lokasiUSU.add(USER_MARKER_NAME);
+            
             // Collect all location names from waypoints
             synchronized (waypoints) {
                 for (CustomWaypoint wp : waypoints) {
@@ -1271,8 +1403,7 @@ public class MapFrame extends javax.swing.JFrame {
                 }
             }
             
-            // Sort alphabetically
-            java.util.Collections.sort(lokasiUSU);
+            // Don't sort - keep user position at top
             
             logger.info("Updating combo boxes with " + lokasiUSU.size() + " locations");
             
@@ -1559,6 +1690,37 @@ public class MapFrame extends javax.swing.JFrame {
                         g.drawString(wp.getName(), x - labelWidth/2, y + 19);
                     }
                 }
+                
+                // Draw USER POSITION MARKER (16px, draggable, blue with location pin icon)
+                if (userPosition != null) {
+                    Point2D userPixel = map.getTileFactory().geoToPixel(userPosition, map.getZoom());
+                    Rectangle viewportBounds = map.getViewportBounds();
+                    int ux = (int)(userPixel.getX() - viewportBounds.getX());
+                    int uy = (int)(userPixel.getY() - viewportBounds.getY());
+                    
+                    // Draw outer circle (blue)
+                    g.setColor(new Color(33, 150, 243)); // Material Blue
+                    g.fillOval(ux - 8, uy - 8, 16, 16);
+                    
+                    // Draw inner circle (white)
+                    g.setColor(Color.WHITE);
+                    g.fillOval(ux - 5, uy - 5, 10, 10);
+                    
+                    // Draw center dot (blue)
+                    g.setColor(new Color(33, 150, 243));
+                    g.fillOval(ux - 3, uy - 3, 6, 6);
+                    
+                    // Draw label "Posisi Saya"
+                    g.setFont(new Font("Times New Roman", Font.BOLD, 11));
+                    FontMetrics fm = g.getFontMetrics();
+                    String label = "Posisi Saya";
+                    int labelWidth = fm.stringWidth(label);
+                    
+                    g.setColor(new Color(255, 255, 255, 240));
+                    g.fillRoundRect(ux - labelWidth/2 - 6, uy + 12, labelWidth + 12, 18, 6, 6);
+                    g.setColor(new Color(33, 150, 243));
+                    g.drawString(label, ux - labelWidth/2, uy + 25);
+                }
             }
         };
 
@@ -1570,18 +1732,102 @@ public class MapFrame extends javax.swing.JFrame {
         // Force repaint to show route immediately
         mapViewer.repaint();
 
-        for (MouseListener ml : mapViewer.getMouseListeners()) {
-            if (ml.getClass().isAnonymousClass()) {
+        // Remove ONLY old custom mouse listeners (preserve PanMouseInputListener)
+        MouseListener[] listeners = mapViewer.getMouseListeners();
+        for (MouseListener ml : listeners) {
+            // Keep the pan listener, remove anonymous custom listeners
+            if (ml != panListener && ml.getClass().isAnonymousClass()) {
                 mapViewer.removeMouseListener(ml);
             }
         }
+        
+        // Remove old mouse motion listeners (preserve PanMouseInputListener)
+        java.awt.event.MouseMotionListener[] motionListeners = mapViewer.getMouseMotionListeners();
+        for (java.awt.event.MouseMotionListener mml : motionListeners) {
+            // Keep the pan listener, remove anonymous custom listeners
+            if (mml != panListener && mml.getClass().isAnonymousClass()) {
+                mapViewer.removeMouseMotionListener(mml);
+            }
+        }
 
+        // Add custom listener for user marker dragging
+        // IMPORTANT: Don't use e.consume() - just set flag and let pan listener check it
+        MouseAdapter markerMouseListener = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                // Check if clicking on user marker
+                if (userPosition != null) {
+                    Point2D userPixel = mapViewer.getTileFactory().geoToPixel(userPosition, mapViewer.getZoom());
+                    Rectangle viewportBounds = mapViewer.getViewportBounds();
+                    int ux = (int)(userPixel.getX() - viewportBounds.getX());
+                    int uy = (int)(userPixel.getY() - viewportBounds.getY());
+                    
+                    if (e.getPoint().distance(new Point(ux, uy)) < 15) {
+                        isDraggingUserMarker = true;
+                        logger.info("Started dragging user marker");
+                    }
+                }
+            }
+            
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (isDraggingUserMarker) {
+                    isDraggingUserMarker = false;
+                    logger.info("Stopped dragging user marker at: " + userPosition);
+                    
+                    // Update combo boxes after moving user position
+                    updateLocationComboBoxes();
+                }
+            }
+        };
+        
+        java.awt.event.MouseMotionAdapter markerMotionListener = new java.awt.event.MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (isDraggingUserMarker) {
+                    // Convert screen coordinates to geo position
+                    Point screenPoint = e.getPoint();
+                    Rectangle viewportBounds = mapViewer.getViewportBounds();
+                    
+                    // Calculate world coordinates
+                    Point2D worldPoint = new Point2D.Double(
+                        screenPoint.x + viewportBounds.getX(),
+                        screenPoint.y + viewportBounds.getY()
+                    );
+                    
+                    // Convert to geo position
+                    GeoPosition newPos = mapViewer.getTileFactory().pixelToGeo(worldPoint, mapViewer.getZoom());
+                    userPosition = newPos;
+                    
+                    // Immediate repaint to show smooth dragging
+                    mapViewer.repaint();
+                }
+            }
+        };
+        
+        mapViewer.addMouseListener(markerMouseListener);
+        mapViewer.addMouseMotionListener(markerMotionListener);
+        
+        // Add click listener for showing waypoint info (separate from drag)
         mapViewer.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 1) {
+                if (e.getClickCount() == 1 && !isDraggingUserMarker) {
                     Point point = e.getPoint();
-                    // Synchronized iteration to prevent ConcurrentModificationException
+                    
+                    // Check if clicking on user marker - do nothing (already handled by drag listener)
+                    if (userPosition != null) {
+                        Point2D userPixel = mapViewer.getTileFactory().geoToPixel(userPosition, mapViewer.getZoom());
+                        Rectangle viewportBounds = mapViewer.getViewportBounds();
+                        int ux = (int)(userPixel.getX() - viewportBounds.getX());
+                        int uy = (int)(userPixel.getY() - viewportBounds.getY());
+                        
+                        if (point.distance(new Point(ux, uy)) < 15) {
+                            return; // Don't show info for user marker
+                        }
+                    }
+                    
+                    // Check waypoints
                     synchronized (waypoints) {
                         for (CustomWaypoint wp : waypoints) {
                             Point2D pixel = mapViewer.getTileFactory().geoToPixel(wp.getPosition(), mapViewer.getZoom());
@@ -1599,10 +1845,51 @@ public class MapFrame extends javax.swing.JFrame {
                 }
             }
         });
+        
+        // Add mouse motion listener for dragging
+        mapViewer.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (isDraggingUserMarker) {
+                    // Convert screen coordinates to geo position
+                    Point screenPoint = e.getPoint();
+                    Rectangle viewportBounds = mapViewer.getViewportBounds();
+                    
+                    // Calculate world coordinates
+                    Point2D worldPoint = new Point2D.Double(
+                        screenPoint.x + viewportBounds.getX(),
+                        screenPoint.y + viewportBounds.getY()
+                    );
+                    
+                    // Convert to geo position
+                    GeoPosition newPos = mapViewer.getTileFactory().pixelToGeo(worldPoint, mapViewer.getZoom());
+                    userPosition = newPos;
+                    
+                    // Immediate repaint to show smooth dragging
+                    mapViewer.repaint();
+                    
+                    // Log every few updates to avoid spam
+                    if (System.currentTimeMillis() % 100 < 20) {
+                        logger.fine("Dragging user marker to: " + userPosition);
+                    }
+                }
+            }
+        });
 
         logger.info("Waypoints updated and painted on map");
     }
 
+    /**
+     * Public method to refresh legend - can be called after admin adds new markers
+     */
+    public void refreshLegendFromDatabase() {
+        SwingUtilities.invokeLater(() -> {
+            refreshLegend();
+            updateWaypoints();
+            logger.info("Legend and waypoints refreshed from database");
+        });
+    }
+    
     /**
      * Update layout based on screen width
      * Switch between desktop (sidebar left) and mobile (sidebar bottom) layout

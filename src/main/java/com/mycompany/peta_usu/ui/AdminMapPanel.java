@@ -489,6 +489,9 @@ public class AdminMapPanel extends JPanel {
                         JOptionPane.INFORMATION_MESSAGE);
                     dialog.dispose();
                     loadMarkers();
+                    
+                    // Auto-refresh MapFrame legend
+                    com.mycompany.peta_usu.utils.MapRefreshUtil.refreshMarkers();
                 } else {
                     JOptionPane.showMessageDialog(dialog, 
                         "Failed to add marker", 
@@ -833,6 +836,9 @@ public class AdminMapPanel extends JPanel {
                         JOptionPane.INFORMATION_MESSAGE);
                     dialog.dispose();
                     loadMarkers();
+                    
+                    // Auto-refresh MapFrame legend
+                    com.mycompany.peta_usu.utils.MapRefreshUtil.refreshMarkers();
                 } else {
                     JOptionPane.showMessageDialog(dialog, 
                         "Failed to add marker to database", 
@@ -974,6 +980,9 @@ public class AdminMapPanel extends JPanel {
                             JOptionPane.INFORMATION_MESSAGE);
                         inputDialog.dispose();
                         loadMarkers();
+                        
+                        // Auto-refresh MapFrame legend
+                        com.mycompany.peta_usu.utils.MapRefreshUtil.refreshMarkers();
                     } else {
                         JOptionPane.showMessageDialog(inputDialog,
                             "Failed to add marker",

@@ -1,6 +1,8 @@
 package com.mycompany.peta_usu.utils;
 
+import com.mycompany.peta_usu.MapFrame;
 import javax.swing.JOptionPane;
+import java.lang.ref.WeakReference;
 
 /**
  * Utility untuk notifikasi refresh MapFrame setelah CRUD operations
@@ -8,11 +10,39 @@ import javax.swing.JOptionPane;
  */
 public class MapRefreshUtil {
     
+    // Weak reference to active MapFrame to avoid memory leaks
+    private static WeakReference<MapFrame> activeMapFrameRef = null;
+    
+    /**
+     * Register active MapFrame for auto-refresh
+     */
+    public static void registerMapFrame(MapFrame mapFrame) {
+        activeMapFrameRef = new WeakReference<>(mapFrame);
+        System.out.println("[MAP REFRESH] MapFrame registered for auto-refresh");
+    }
+    
+    /**
+     * Unregister MapFrame
+     */
+    public static void unregisterMapFrame() {
+        activeMapFrameRef = null;
+        System.out.println("[MAP REFRESH] MapFrame unregistered");
+    }
+    
     /**
      * Notifikasi bahwa data telah berubah dan Maps perlu di-refresh
      */
     public static void notifyDataChanged(String entityName) {
-        // User akan me-refresh MapFrame manual atau otomatis reload saat dibuka
+        // Auto-refresh active MapFrame if available
+        if (activeMapFrameRef != null) {
+            MapFrame mapFrame = activeMapFrameRef.get();
+            if (mapFrame != null) {
+                mapFrame.refreshLegendFromDatabase();
+                System.out.println("[MAP REFRESH] " + entityName + " data updated - MapFrame auto-refreshed");
+                return;
+            }
+        }
+        // Fallback: just log
         System.out.println("[MAP REFRESH] " + entityName + " data updated - Maps will auto-refresh on next load");
     }
     
