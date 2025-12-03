@@ -13,10 +13,8 @@ import java.util.logging.Logger;
  */
 public class RoadDAO {
     private static final Logger logger = Logger.getLogger(RoadDAO.class.getName());
-    private final Connection connection;
     
     public RoadDAO() {
-        this.connection = DatabaseConnection.getInstance().getConnection();
     }
     
     // Create
@@ -26,7 +24,8 @@ public class RoadDAO {
                     "polyline_points, google_road_name, road_segments, last_gmaps_update) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, road.getRoadName());
             pstmt.setString(2, road.getRoadType() != null ? road.getRoadType().getValue() : Road.RoadType.NORMAL.getValue());
             pstmt.setDouble(3, road.getStartLat());
@@ -64,7 +63,8 @@ public class RoadDAO {
         List<Road> roads = new ArrayList<>();
         String sql = "SELECT * FROM roads ORDER BY road_name";
         
-        try (Statement stmt = connection.createStatement();
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
@@ -80,7 +80,8 @@ public class RoadDAO {
     public Road getRoadById(int roadId) {
         String sql = "SELECT * FROM roads WHERE road_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, roadId);
             ResultSet rs = pstmt.executeQuery();
             
@@ -100,7 +101,8 @@ public class RoadDAO {
                     "distance = ?, description = ?, polyline_points = ?, google_road_name = ?, " +
                     "road_segments = ?, last_gmaps_update = ? WHERE road_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, road.getRoadName());
             pstmt.setString(2, road.getRoadType() != null ? road.getRoadType().getValue() : Road.RoadType.NORMAL.getValue());
             pstmt.setDouble(3, road.getStartLat());
@@ -133,7 +135,8 @@ public class RoadDAO {
     public boolean deleteRoad(int roadId) {
         String sql = "DELETE FROM roads WHERE road_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, roadId);
             int affected = pstmt.executeUpdate();
             
@@ -153,7 +156,8 @@ public class RoadDAO {
         String sql = "SELECT * FROM roads WHERE road_name LIKE ? OR description LIKE ? " +
                     "ORDER BY road_name";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection connection = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
             String pattern = "%" + keyword + "%";
             pstmt.setString(1, pattern);
             pstmt.setString(2, pattern);
