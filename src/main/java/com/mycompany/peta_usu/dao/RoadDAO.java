@@ -10,6 +10,24 @@ import java.util.logging.Logger;
 
 /**
  * DAO untuk tabel roads
+ * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Logger PRIVATE, tidak bisa diakses dari luar
+ *    - Method mapResultSetToRoad() PRIVATE untuk internal mapping
+ *    - Tujuan: Sembunyikan detail database operations
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - insertRoad(), updateRoad() terima object Road
+ *    - Road.getRoadType() bisa return NORMAL, ONE_WAY, CLOSED (enum polymorphism)
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - DAO abstraksi kompleks dari tabel roads dengan banyak field
+ *    - Sembunyikan: polyline encoding, Google Maps integration, JSON segments
+ *    - User cukup: insertRoad(road) → jalan tersimpan dengan semua detail
+ *    - getAllRoads() → dapat semua jalan tanpa tahu query SQL
+ * 
  */
 public class RoadDAO {
     private static final Logger logger = Logger.getLogger(RoadDAO.class.getName());

@@ -12,6 +12,22 @@ import java.util.logging.Logger;
  * RoadClosureDAO - Data Access Object untuk RoadClosure
  * Menangani operasi penutupan jalan
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Logger PRIVATE, method mapResultSetToRoadClosure() PRIVATE
+ *    - SQL query dengan JOIN tersembunyi dari user
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - getActiveClosures() auto filter berdasarkan date tanpa parameter
+ *    - insertClosure() terima RoadClosure object (berbagai tipe closure)
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - DAO abstraksi dari tabel road_closures + JOIN dengan roads & users
+ *    - Sembunyikan: JOIN syntax, date comparison (CURDATE()), LEFT JOIN
+ *    - User cukup: getActiveClosures() → dapat list closure yang masih aktif
+ *    - Tidak perlu tahu SQL kompleks dengan 3 tabel JOIN
+ * 
  * @author PETA_USU Team
  */
 public class RoadClosureDAO {

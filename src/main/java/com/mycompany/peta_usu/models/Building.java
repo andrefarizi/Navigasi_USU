@@ -6,6 +6,26 @@ import java.sql.Timestamp;
  * Building Model Class
  * Merepresentasikan gedung-gedung di USU
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua atribut (buildingId, buildingName, latitude, dll) PRIVATE
+ *    - Akses data hanya lewat getter/setter untuk kontrol keamanan
+ *    - Contoh: latitude tidak bisa diset sembarangan nilai invalid
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Enum BuildingType mewarisi konsep enum dari Java
+ *    - Class ini extend Object (implicit, semua class Java extend Object)
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Override toString() agar print building tampil nama, bukan alamat memori
+ *    - Method distanceFrom() bisa dipanggil dengan parameter berbeda
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Class ini MODEL murni, tidak peduli datanya dari mana (DB/file/API)
+ *    - Method distanceFrom() sembunyikan rumus Haversine yang kompleks
+ *    - User tinggal panggil: building.distanceFrom(lat, lng) tanpa tahu rumus
+ * 
  * @author PETA_USU Team
  */
 public class Building {
@@ -173,6 +193,8 @@ public class Building {
         this.updatedAt = updatedAt;
     }
     
+    // === POLYMORPHISM: Override toString() ===
+    // Mengubah behavior default, print "Fakultas Teknik (FT)" bukan "Building@abc123"
     @Override
     public String toString() {
         return buildingName + " (" + buildingCode + ")";
@@ -181,6 +203,11 @@ public class Building {
     /**
      * Calculate distance from a given point
      * Using Haversine formula
+     * 
+     * === ABSTRACTION: Sembunyikan kompleksitas rumus Haversine ===
+     * User tidak perlu tahu rumus matematika rumit di balik ini
+     * Cukup panggil: building.distanceFrom(3.5688, 98.6618)
+     * Hasil langsung dapat jarak dalam meter, tanpa repot hitung manual
      */
     public double distanceFrom(double lat, double lng) {
         final int R = 6371; // Radius of the earth in km

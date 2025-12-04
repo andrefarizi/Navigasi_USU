@@ -53,6 +53,33 @@ import java.util.ArrayList;
  * Langsung accessible tanpa login
  * Integrated dengan database untuk building info
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Field mapViewer, waypoints, userPosition PRIVATE
+ *    - Method loadBuildingsFromDatabase(), handleMarkerClick() PRIVATE
+ *    - Tujuan: Lindungi data map dari akses/modifikasi tidak sah
+ *    - User hanya interaksi lewat UI, tidak bisa manipulasi waypoint langsung
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class ini EXTENDS JFrame (mewarisi dari Swing)
+ *    - Inner class CustomWaypoint EXTENDS DefaultWaypoint
+ *    - Dapat semua fitur DefaultWaypoint + tambahan: iconPath, buildingId, type
+ *    - Tujuan: Reuse code dari JFrame dan DefaultWaypoint
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - MouseAdapter: Override mouseClicked() untuk handle klik marker
+ *    - ComponentAdapter: Override componentResized() untuk responsive layout
+ *    - DocumentListener: Override insertUpdate/removeUpdate untuk search real-time
+ *    - Tujuan: Satu event listener, berbagai behavior tergantung event
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - MapFrame ABSTRAKSI dari JXMapViewer yang kompleks
+ *    - User tidak perlu tahu: TileFactory, GeoPosition, WaypointPainter
+ *    - Cukup new MapFrame(nim) → peta USU muncul dengan marker
+ *    - Klik marker → info gedung muncul (tanpa tahu DAO/database)
+ *    - Sembunyikan: database query, koordinat conversion, tile loading
+ * 
  * @author PETA_USU Team
  */
 public class MapFrame extends javax.swing.JFrame {
@@ -1995,6 +2022,10 @@ public class MapFrame extends javax.swing.JFrame {
         return poly;
     }
     
+    // === INHERITANCE: Inner Class extends DefaultWaypoint ===
+    // CustomWaypoint MEWARISI semua method dari DefaultWaypoint
+    // Tambahan: iconPath, buildingId, markerType (fitur baru)
+    // Tujuan: Extend fungsionalitas DefaultWaypoint tanpa ubah class asli
     private static class CustomWaypoint extends DefaultWaypoint {
         private final String name;
         private final String type;

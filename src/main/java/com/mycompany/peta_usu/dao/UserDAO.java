@@ -12,6 +12,24 @@ import java.util.logging.Logger;
  * UserDAO - Data Access Object untuk User
  * Menangani autentikasi dan manajemen user
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Connection PRIVATE FINAL (hanya bisa diset di constructor)
+ *    - Method mapResultSetToUser() PRIVATE (internal mapping)
+ *    - Password handling tersembunyi dari caller
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - authenticate() return User atau null (polymorphic return)
+ *    - getUserByNim() vs getUserById() (method overloading concept)
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - DAO abstraksi dari authentication system
+ *    - Sembunyikan: SQL query, password comparison (plaintext WARNING!)
+ *    - User cukup: authenticate(nim, pass) → dapat User object atau null
+ *    - getAllUsers() → dapat semua user tanpa tahu detail query
+ *    - Note: Production harus pakai password hashing (bcrypt/argon2)
+ * 
  * @author PETA_USU Team
  */
 public class UserDAO {

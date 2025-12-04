@@ -12,6 +12,31 @@ import java.util.logging.Logger;
  * GoogleMapsHelper - Utility untuk Google Maps API
  * Helper class untuk integrasi Google Maps
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - API_KEY disimpan sebagai PRIVATE STATIC FINAL (constant)
+ *    - Tidak bisa diubah atau diakses langsung dari luar
+ *    - Tujuan: Keamanan API key, cegah penyalahgunaan
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Inner class MapMarker bisa di-extend untuk custom marker
+ *    - Method overloading: generateMapHTMLWithMarkers() punya 2 versi
+ *    - Versi 1: Tanpa parameter center (pakai default USU_CENTER)
+ *    - Versi 2: Dengan parameter center yang custom
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Method overloading: generateMapHTMLWithMarkers(markers) vs generateMapHTMLWithMarkers(lat, lng, zoom, markers)
+ *    - Constructor overloading di MapMarker: 3 versi constructor berbeda
+ *    - Tujuan: Fleksibilitas pemanggilan method sesuai kebutuhan
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Class ini ABSTRAKSI dari Google Maps API yang kompleks
+ *    - User tidak perlu tahu: HTTP request, URL encoding, JSON parsing
+ *    - Cukup panggil: getStaticMapUrl() atau generateMapHTML()
+ *    - Hasil: URL atau HTML siap pakai untuk tampilkan peta
+ *    - Tujuan: Sederhanakan integrasi Google Maps
+ * 
  * @author PETA_USU Team
  */
 public class GoogleMapsHelper {
@@ -110,6 +135,13 @@ public class GoogleMapsHelper {
     
     /**
      * Generate HTML with multiple markers - overloaded version with default center
+     * 
+     * === POLYMORPHISM: Method Overloading ===
+     * Method ini OVERLOAD dari generateMapHTMLWithMarkers() yang lain
+     * Punya nama sama tapi parameter BERBEDA
+     * Versi 1 (ini): Cuma butuh List<MapMarker>
+     * Versi 2 (bawah): Butuh centerLat, centerLng, zoom, markers
+     * Java otomatis pilih method yang sesuai berdasarkan parameter
      */
     public static String generateMapHTMLWithMarkers(java.util.List<MapMarker> markers) {
         return generateMapHTMLWithMarkers(USU_CENTER_LAT, USU_CENTER_LNG, 15, markers);
@@ -117,6 +149,7 @@ public class GoogleMapsHelper {
     
     /**
      * Generate HTML with multiple markers
+     * === POLYMORPHISM: Method Overloading (versi lengkap) ===
      */
     public static String generateMapHTMLWithMarkers(double centerLat, double centerLng, 
                                                      int zoom, java.util.List<MapMarker> markers) {
@@ -225,11 +258,15 @@ public class GoogleMapsHelper {
         public String icon;
         public boolean draggable;
         
-        // Simple constructor for user map
+        // === POLYMORPHISM: Constructor Overloading ===
+        // 3 constructor berbeda untuk fleksibilitas pembuatan MapMarker
+        
+        // Constructor 1: Simple (untuk user map, id auto 0)
         public MapMarker(double lat, double lng, String title, String description) {
             this(0, lat, lng, title, description);
         }
         
+        // Constructor 2: Dengan ID (untuk admin map)
         public MapMarker(int id, double lat, double lng, String title, String description) {
             this.id = id;
             this.lat = lat;

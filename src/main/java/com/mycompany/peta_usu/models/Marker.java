@@ -6,9 +6,32 @@ import java.sql.Timestamp;
  * Marker Model Class
  * Merepresentasikan custom markers yang ditambahkan admin
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua field (markerId, markerName, latitude, dll) PRIVATE
+ *    - Akses hanya lewat getter/setter untuk kontrol data
+ *    - Tujuan: Lindungi data marker dari perubahan tidak sah
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class ini extend Object (implicit dari Java)
+ *    - Bisa di-extend untuk custom marker types (misal: EventMarker, FacilityMarker)
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Override toString() untuk tampilkan nama + type marker
+ *    - Method isActive() bisa dipanggil untuk filter marker aktif/nonaktif
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Model sederhana untuk marker di peta
+ *    - User tidak perlu tahu data dari database, JSON, atau API
+ *    - Cukup dapat object Marker dengan semua info lengkap
+ * 
  * @author PETA_USU Team
  */
 public class Marker {
+    
+    // === ENCAPSULATION: Semua field PRIVATE ===
+    // Tidak bisa diakses langsung, harus lewat getter/setter
     
     private int markerId;
     private String markerName;
@@ -133,6 +156,8 @@ public class Marker {
         this.updatedAt = updatedAt;
     }
     
+    // === POLYMORPHISM: Override toString() ===
+    // Tampilkan "Kantin FT (Building)" bukan "Marker@abc123"
     @Override
     public String toString() {
         return markerName + " (" + markerType + ")";

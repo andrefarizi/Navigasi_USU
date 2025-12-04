@@ -4,8 +4,31 @@ import java.sql.Timestamp;
 
 /**
  * Model class for user reports
+ * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua field PRIVATE (reportId, userNim, location, dll)
+ *    - Akses data hanya via getter/setter
+ *    - Tujuan: Validasi data report sebelum disimpan
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Enum ReportType mewarisi konsep enum dari Java
+ *    - Override toString() di enum untuk display name
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Enum toString() override untuk tampilkan "Jalan Rusak" bukan "JALAN_RUSAK"
+ *    - Method fromString() static polymorphism untuk convert String ke enum
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Model abstrak untuk laporan user
+ *    - User tidak peduli datanya tersimpan di MySQL, MongoDB, atau file
+ *    - Cukup buat new Report() dan panggil setter
+ * 
  */
 public class Report {
+    
+    // === ENCAPSULATION: Field PRIVATE ===
     
     private int reportId;
     private String userNim;
@@ -20,6 +43,10 @@ public class Report {
     
     /**
      * Enum for report types
+     * 
+     * === INHERITANCE + POLYMORPHISM ===
+     * Enum mewarisi dari java.lang.Enum
+     * Override toString() untuk custom display
      */
     public enum ReportType {
         JALAN_RUSAK("Jalan Rusak"),

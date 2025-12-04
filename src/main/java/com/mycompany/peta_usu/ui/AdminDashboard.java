@@ -28,6 +28,31 @@ import java.util.Map;
 /**
  * Admin Dashboard - Versi Clean tanpa Search, Profile, Settings
  * Hanya Homepage, Maps, dan CRUD Panels untuk semua tabel
+ * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua panel (sidebarPanel, contentPanel, homePanel) PRIVATE
+ *    - Tidak bisa diakses dari class lain
+ *    - Method createSidebar(), createHomePanel() PRIVATE (internal use only)
+ *    - Tujuan: Kontrol penuh terhadap tampilan UI
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class ini EXTENDS JFrame (mewarisi semua method JFrame)
+ *    - Dapatkan method: setTitle(), setSize(), add(), setVisible(), dll GRATIS
+ *    - Tidak perlu coding dari nol, tinggal pakai warisan dari JFrame
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Method setTitle() dipanggil dengan parameter String (dari JFrame)
+ *    - Method add() bisa terima Component berbeda (Panel, Label, Button)
+ *    - ActionListener lambda di menu: satu pattern, banyak menu berbeda
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Dashboard ini ABSTRAKSI dari UI kompleks Swing
+ *    - User cukup new AdminDashboard() → dashboard langsung muncul
+ *    - Tidak perlu tahu detail: JPanel, BorderLayout, CardLayout, BoxLayout
+ *    - Sembunyikan kompleksitas UI, tampilkan dashboard siap pakai
+ * 
  */
 public class AdminDashboard extends JFrame {
     private JPanel sidebarPanel, contentPanel;

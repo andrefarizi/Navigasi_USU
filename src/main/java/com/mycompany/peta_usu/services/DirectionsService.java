@@ -18,6 +18,27 @@ import java.util.logging.Logger;
  * DirectionsService - Service untuk mendapatkan rute dari Google Directions API
  * Menggunakan Google Maps Directions API untuk mendapatkan polyline rute yang mengikuti jalan
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - API_KEY PRIVATE STATIC FINAL (rahasia, tidak bisa diubah)
+ *    - GoogleMapsRoadService instance PRIVATE
+ *    - Method parseDirectionsResponse() PRIVATE (internal parsing)
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Inner class DirectionsResult bisa di-extend untuk custom result
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Method getWalkingDirections() bisa dipanggil dengan koordinat berbeda
+ *    - DirectionsResult.polyline bisa berisi 10 point atau 1000 point
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Service ini ABSTRAKSI LENGKAP dari Google Directions API
+ *    - Sembunyikan: HTTP request, JSON parsing, polyline decoding, error handling
+ *    - User cukup: getWalkingDirections(lat1, lng1, lat2, lng2)
+ *    - Hasil: DirectionsResult dengan polyline siap pakai di peta
+ *    - Tidak perlu tahu: API key, URL format, response structure
+ * 
  * @author PETA_USU Team
  */
 public class DirectionsService {
