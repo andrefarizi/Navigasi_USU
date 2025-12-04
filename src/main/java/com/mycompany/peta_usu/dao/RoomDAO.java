@@ -12,6 +12,22 @@ import java.util.logging.Logger;
  * RoomDAO - Data Access Object untuk Room
  * Menangani operasi CRUD untuk ruangan/kelas
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Connection PRIVATE FINAL, tidak bisa diubah setelah konstruktor
+ *    - Logger PRIVATE, method mapResultSetToRoom() PRIVATE
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - getRoomsByBuilding() filter berdasarkan buildingId berbeda
+ *    - insertRoom(), updateRoom() terima Room object (berbagai tipe)
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - DAO abstraksi dari tabel rooms + JOIN dengan buildings
+ *    - Sembunyikan: JOIN syntax, foreign key buildingId, sorting logic
+ *    - User cukup: getRoomsByBuilding(10) → dapat semua ruangan di gedung 10
+ *    - Result sudah include buildingName (dari JOIN) tanpa query lagi
+ * 
  * @author PETA_USU Team
  */
 public class RoomDAO {

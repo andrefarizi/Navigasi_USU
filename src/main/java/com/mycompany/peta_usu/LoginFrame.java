@@ -15,9 +15,37 @@ import java.io.File;
  * LoginFrame - Login HANYA untuk Admin
  * User tidak perlu login, langsung ke MapFrame
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Field usernameField, passwordField, loginButton PRIVATE
+ *    - Tidak bisa diakses dari luar class
+ *    - Method setupLoginUI() dan login() PRIVATE (internal only)
+ *    - Tujuan: Keamanan form login, cegah manipulasi dari luar
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class ini EXTENDS JFrame (mewarisi dari Java Swing)
+ *    - Dapat semua method JFrame: setTitle(), setSize(), add(), dll
+ *    - Anonymous inner class: new JPanel() { paintComponent() } → override method
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Override paintComponent() untuk custom background image
+ *    - ActionListener lambda: berbagai button, behavior berbeda
+ *    - loginButton.addActionListener(e -> login()) → polymorphic callback
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - LoginFrame ABSTRAKSI dari proses autentikasi kompleks
+ *    - User cukup new LoginFrame() → form login muncul
+ *    - Tidak perlu tahu: AuthMiddleware, UserDAO, database connection
+ *    - Klik login → otomatis validasi, autentikasi, buka AdminDashboard
+ *    - Sembunyikan kompleksitas di balik UI sederhana
+ * 
  * @author PETA_USU Team
  */
 public class LoginFrame extends javax.swing.JFrame {
+    // === ENCAPSULATION: Semua field UI PRIVATE ===
+    // usernameField, passwordField tidak bisa diakses dari luar
+    // Cegah manipulasi input dari class lain
     private JTextField usernameField;
     private JPasswordField passwordField;
     private JButton loginButton;
@@ -49,6 +77,9 @@ public class LoginFrame extends javax.swing.JFrame {
             logger.warning("Background image not found: " + e.getMessage());
         }
 
+        // === POLYMORPHISM: Anonymous Inner Class + Override ===
+        // Buat JPanel baru dan OVERRIDE method paintComponent()
+        // Behavior custom: tampilkan background image, bukan warna solid
         JPanel mainPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {

@@ -12,6 +12,29 @@ import java.util.logging.Logger;
  * BuildingDAO - Data Access Object untuk Building
  * Menangani semua operasi CRUD untuk building
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Connection database PRIVATE, tidak bisa diakses dari luar
+ *    - Method mapResultSetToBuilding() PRIVATE, hanya untuk internal DAO
+ *    - Tujuan: Sembunyikan detail database dari class lain
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class ini tidak inherit dari class lain (standalone)
+ *    - Tapi bisa dibuat interface DAO<T> dan implements di class ini (best practice)
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Method getBuildingsByType() terima parameter BuildingType (enum)
+ *    - Bisa panggil dengan FAKULTAS, GEDUNG, MUSHOLLA, dll (satu method, banyak tipe)
+ *    - Logger.log() adalah contoh polymorphism (bisa log Level.INFO, SEVERE, dll)
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - DAO ini ABSTRAKSI dari database MySQL
+ *    - Class lain tidak perlu tahu SQL query, PreparedStatement, ResultSet
+ *    - Cukup panggil: buildingDAO.getAllBuildings() → dapat List<Building>
+ *    - Sembunyikan semua kompleksitas: koneksi, query, mapping, error handling
+ *    - Tujuan: Mudahkan penggunaan database tanpa tahu detail SQL
+ * 
  * @author PETA_USU Team
  */
 public class BuildingDAO {
@@ -253,6 +276,15 @@ public class BuildingDAO {
     
     /**
      * Map ResultSet to Building object
+     * 
+     * === ENCAPSULATION: Method ini PRIVATE ===
+     * Hanya bisa dipanggil dari dalam class BuildingDAO
+     * Class lain tidak bisa akses method ini
+     * Tujuan: Sembunyikan detail teknis mapping dari ResultSet ke Object
+     * 
+     * === ABSTRACTION: Sembunyikan kompleksitas mapping ===
+     * User tidak perlu tahu rs.getString("building_code"), rs.getDouble(), dll
+     * Cukup terima object Building yang sudah jadi
      */
     private Building mapResultSetToBuilding(ResultSet rs) throws SQLException {
         Building building = new Building();

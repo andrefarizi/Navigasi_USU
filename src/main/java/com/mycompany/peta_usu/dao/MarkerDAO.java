@@ -12,6 +12,23 @@ import java.util.logging.Logger;
  * MarkerDAO - Data Access Object untuk Marker
  * Menangani semua operasi CRUD untuk custom markers
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Logger dan database connection management PRIVATE
+ *    - Method mapResultSetToMarker() PRIVATE (internal only)
+ *    - Tujuan: Sembunyikan detail koneksi database
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - Method getMarkersByType() terima parameter String berbeda
+ *    - try-with-resources auto close Connection, Statement, ResultSet
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - DAO abstraksi penuh dari database markers
+ *    - User tidak perlu tahu: SQL, PreparedStatement, ResultSet
+ *    - Cukup panggil: getAllMarkers() → dapat List<Marker>
+ *    - Sembunyikan: query optimization, connection pooling, error handling
+ * 
  * @author PETA_USU Team
  */
 public class MarkerDAO {

@@ -18,9 +18,33 @@ import javax.imageio.ImageIO;
  * IconUploadManager - Utility untuk upload dan manage icon
  * Fitur untuk admin upload icon dari laptop
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Constants (UPLOAD_DIRECTORY, MAX_FILE_SIZE) PRIVATE STATIC FINAL
+ *    - Method validateFile() PRIVATE (internal validation only)
+ *    - Tujuan: Sembunyikan detail validasi dan path configuration
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - Method uploadIcon() bisa terima File dari berbagai source
+ *    - JFileChooser.showOpenDialog() polymorphic (bisa null parent atau JFrame)
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - Utility abstraksi lengkap dari file upload process
+ *    - Sembunyikan: File I/O, path manipulation, UUID generation, file copy
+ *    - User cukup: selectIconFile(frame) → dapat File
+ *    - uploadIcon(file) → dapat path hasil upload
+ *    - Tidak perlu tahu: Files.copy(), StandardCopyOption, Path, UUID
+ * 
+ * 4. STATIC METHODS:
+ *    - Semua method STATIC (utility class pattern)
+ *    - Tidak perlu instance: IconUploadManager.selectIconFile()
+ * 
  * @author PETA_USU Team
  */
 public class IconUploadManager {
+    
+    // === ENCAPSULATION: Constants PRIVATE ===
     
     private static final Logger logger = Logger.getLogger(IconUploadManager.class.getName());
     private static final String UPLOAD_DIRECTORY = "resources/icons/";

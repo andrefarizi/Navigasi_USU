@@ -6,6 +6,32 @@ import java.sql.Timestamp;
  * User Model Class
  * Merepresentasikan user (mahasiswa dan admin)
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua atribut (userId, nim, password, dll) bersifat PRIVATE
+ *    - Data hanya bisa diakses melalui GETTER dan SETTER
+ *    - Tujuan: Melindungi data dari akses langsung, memberi kontrol penuh ke class ini
+ *    - Contoh: password tidak bisa diubah sembarangan, harus lewat setPassword()
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class ini TIDAK mewarisi class lain (hanya Object dari Java)
+ *    - Tapi enum UserRole DI DALAM class ini mewarisi konsep enum Java
+ *    - Tujuan: Mengorganisir kode dengan hierarki yang jelas
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Method toString() di-OVERRIDE dari class Object
+ *    - Saat print User object, akan tampil "nama (nim)" bukan alamat memori
+ *    - Tujuan: Satu method bisa punya perilaku berbeda tergantung konteks
+ *    - Contoh: System.out.println(user) akan memanggil toString() otomatis
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Class ini adalah MODEL sederhana yang merepresentasikan user
+ *    - Menyembunyikan detail kompleks (database, query) dari pengguna class
+ *    - User hanya butuh tahu: "ini ada object User dengan data X Y Z"
+ *    - Tidak perlu tahu data berasal dari MySQL, PostgreSQL, atau file
+ *    - Tujuan: Memudahkan penggunaan tanpa perlu tahu detail implementasi
+ * 
  * @author PETA_USU Team
  */
 public class User {
@@ -19,7 +45,13 @@ public class User {
     private Timestamp createdAt;
     private Timestamp updatedAt;
     
+    // === ENCAPSULATION: Semua field PRIVATE ===
+    // Tidak bisa diakses langsung dari luar, harus pakai getter/setter
+    // Contoh SALAH: user.userId = 99 (error karena private)
+    // Contoh BENAR: user.setUserId(99) (lewat method public)
+    
     // Enum untuk role user
+    // === INHERITANCE: UserRole mewarisi kemampuan enum dari Java ===
     public enum UserRole {
         ADMIN("admin"),
         USER("user");
@@ -129,6 +161,11 @@ public class User {
         return this.role == UserRole.ADMIN;
     }
     
+    // === POLYMORPHISM: Override method toString() dari class Object ===
+    // Method ini mengubah perilaku default toString()
+    // Default toString() tampilkan: User@15db9742 (alamat memori)
+    // Setelah override tampilkan: "John Doe (2205181001)" (lebih readable)
+    // Manfaat: Saat print object, otomatis panggil method ini
     @Override
     public String toString() {
         return name + " (" + nim + ")";

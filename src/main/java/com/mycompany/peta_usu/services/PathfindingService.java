@@ -10,6 +10,32 @@ import java.util.*;
  * PathfindingService - Algoritma A* untuk mencari rute tercepat
  * Menggunakan database roads untuk pathfinding
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Class Node PRIVATE (static inner class), hanya bisa diakses dalam PathfindingService
+ *    - Method buildGraph(), astar(), reconstructPath() semuanya PRIVATE
+ *    - Tujuan: Sembunyikan detail algoritma A* yang kompleks
+ *    - User hanya panggil: findShortestPath() dan terima RouteResult
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Class Node implements Comparable<Node> (inherit interface)
+ *    - Override method compareTo(), equals(), hashCode() dari Object
+ *    - Tujuan: Agar Node bisa diurutkan di PriorityQueue
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Node.compareTo() override untuk sorting berdasarkan fCost (A* algorithm)
+ *    - equals() dan hashCode() override untuk Set/Map operations
+ *    - haversineDistance() dipanggil dengan parameter berbeda di berbagai tempat
+ *    - Tujuan: Satu method, berbagai konteks penggunaan
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Service ini ABSTRAKSI dari algoritma A* yang sangat kompleks
+ *    - User tidak perlu tahu: Node, Edge, openSet, closedSet, gCost, hCost
+ *    - Cukup panggil: findShortestPath(startLat, startLng, endLat, endLng)
+ *    - Hasil: RouteResult dengan polyline siap ditampilkan di peta
+ *    - Tujuan: Sederhanakan penggunaan pathfinding tanpa tahu detail algoritma
+ * 
  * @author PETA_USU Team
  */
 public class PathfindingService {
@@ -24,6 +50,14 @@ public class PathfindingService {
     
     /**
      * Node untuk A* algorithm
+     * 
+     * === ENCAPSULATION: Inner class PRIVATE STATIC ===
+     * Hanya PathfindingService yang bisa buat dan akses Node
+     * Class lain tidak bisa lihat atau pakai Node ini
+     * 
+     * === INHERITANCE: Implements Comparable ===
+     * Mewarisi kontrak dari interface Comparable<Node>
+     * Wajib implement method compareTo() untuk sorting
      */
     private static class Node implements Comparable<Node> {
         double lat;
@@ -43,11 +77,16 @@ public class PathfindingService {
             this.parent = null;
         }
         
+        // === POLYMORPHISM: Override compareTo() ===
+        // Ubah perilaku sorting: urutkan berdasarkan fCost (bukan default)
+        // PriorityQueue akan panggil method ini untuk sort Node
         @Override
         public int compareTo(Node other) {
             return Double.compare(this.fCost, other.fCost);
         }
         
+        // === POLYMORPHISM: Override equals() ===
+        // Dua node dianggap sama jika koordinatnya hampir sama (toleransi 0.0001)
         @Override
         public boolean equals(Object obj) {
             if (!(obj instanceof Node)) return false;
@@ -56,6 +95,8 @@ public class PathfindingService {
                    Math.abs(this.lng - other.lng) < 0.0001;
         }
         
+        // === POLYMORPHISM: Override hashCode() ===
+        // Custom hash untuk bisa simpan Node di HashSet/HashMap
         @Override
         public int hashCode() {
             return Objects.hash(

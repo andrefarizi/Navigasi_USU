@@ -8,6 +8,23 @@ import java.util.List;
 
 /**
  * DAO for managing user reports
+ * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Method createReport() sembunyikan detail INSERT SQL
+ *    - Connection management internal, tidak exposed keluar
+ * 
+ * 2. POLYMORPHISM (Polimorfisme):
+ *    - report.getReportType().name() polymorphic call ke enum
+ *    - getAllReports() return List bisa berisi 0 atau 1000+ reports
+ * 
+ * 3. ABSTRACTION (Abstraksi):
+ *    - DAO abstraksi lengkap dari tabel reports
+ *    - User cukup: createReport(report) → laporan tersimpan
+ *    - getAllReports() → dapat semua laporan tanpa tahu SQL
+ *    - Sembunyikan: NOW() function, ORDER BY, is_read flag
+ * 
  */
 public class ReportDAO {
     

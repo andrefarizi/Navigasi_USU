@@ -4,8 +4,30 @@ import java.sql.Timestamp;
 
 /**
  * Model untuk tabel roads
+ * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua koordinat jalan (startLat, startLng, endLat, endLng) PRIVATE
+ *    - Data polyline dari Google Maps tersimpan aman
+ *    - Tujuan: Cegah manipulasi koordinat yang bisa rusak peta
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Enum RoadType dengan method getValue() dan getDisplayName()
+ *    - Mewarisi kemampuan enum untuk type safety
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Override toString() tampilkan "Jl. Alumni (Jalan Satu Arah)"
+ *    - Enum RoadType.fromString() static polymorphism
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Model jalan yang abstrak dari database
+ *    - Sembunyikan detail: polyline encoding, JSON segments, Google Maps API
+ *    - User cukup dapat object Road dengan semua info jalan
+ * 
  */
 public class Road {
+    // === ENCAPSULATION: Koordinat dan data jalan PRIVATE ===
     private int roadId;
     private String roadName;
     private RoadType roadType;
@@ -23,6 +45,8 @@ public class Road {
     private Timestamp createdAt;
     private Timestamp updatedAt;
     
+    // === INHERITANCE: Enum mewarisi dari java.lang.Enum ===
+    // Tambahan: value dan displayName untuk fleksibilitas
     public enum RoadType {
         NORMAL("main", "Jalan Normal"),
         ONE_WAY("oneway", "Jalan Satu Arah"),
@@ -113,6 +137,7 @@ public class Road {
     public Timestamp getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Timestamp updatedAt) { this.updatedAt = updatedAt; }
     
+    // === POLYMORPHISM: Override toString() ===
     @Override
     public String toString() {
         return roadName + " (" + roadType.getDisplayName() + ")";

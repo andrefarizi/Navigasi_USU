@@ -8,9 +8,31 @@ import java.sql.Timestamp;
  * RoadClosure Model Class
  * Merepresentasikan penutupan jalan di area USU
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Field closureId, roadId, dates PRIVATE
+ *    - Method isCurrentlyActive() bungkus logic kompleks validasi tanggal
+ *    - Tujuan: Sembunyikan detail validasi dari user
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Enum ClosureType mewarisi dari java.lang.Enum
+ *    - Method fromString() untuk konversi String ke enum
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Override toString() untuk format output custom
+ *    - isCurrentlyActive() method dengan logic berbeda tergantung tipe closure
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Abstraksi penutupan jalan dari database
+ *    - Method isCurrentlyActive() sembunyikan kompleksitas cek tanggal/waktu
+ *    - User cukup panggil method, tidak perlu tahu detail validasi
+ * 
  * @author PETA_USU Team
  */
 public class RoadClosure {
+    
+    // === ENCAPSULATION: Field PRIVATE ===
     
     private int closureId;
     private int roadId;
@@ -182,6 +204,12 @@ public class RoadClosure {
     
     /**
      * Check if closure is currently active based on date/time
+     * 
+     * === ABSTRACTION: Sembunyikan kompleksitas validasi tanggal ===
+     * User cukup panggil isCurrentlyActive() tanpa tahu detail:
+     * - Validasi isActive flag
+     * - Compare dengan tanggal sekarang
+     * - Check date range (startDate, endDate)
      */
     public boolean isCurrentlyActive() {
         if (!isActive) return false;
@@ -195,6 +223,7 @@ public class RoadClosure {
         return true;
     }
     
+    // === POLYMORPHISM: Override toString() ===
     @Override
     public String toString() {
         return roadName + " - " + closureType.getValue() + 

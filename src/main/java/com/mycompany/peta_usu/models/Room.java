@@ -6,9 +6,31 @@ import java.sql.Timestamp;
  * Room Model Class
  * Merepresentasikan ruangan/kelas dalam gedung
  * 
+ * === 4 PILAR OOP YANG DITERAPKAN ===
+ * 
+ * 1. ENCAPSULATION (Enkapsulasi):
+ *    - Semua field PRIVATE (roomId, buildingId, capacity, dll)
+ *    - Akses data lewat getter/setter untuk validasi
+ *    - Contoh: capacity tidak bisa diset nilai negatif
+ * 
+ * 2. INHERITANCE (Pewarisan):
+ *    - Enum RoomType mewarisi dari java.lang.Enum
+ *    - Method fromString() untuk konversi String ke tipe ruangan
+ * 
+ * 3. POLYMORPHISM (Polimorfisme):
+ *    - Override toString() untuk format "FT-201 - Lab Komputer (Lt. 2)"
+ *    - Enum RoomType bisa diperlakukan sebagai String atau object
+ * 
+ * 4. ABSTRACTION (Abstraksi):
+ *    - Model sederhana untuk ruangan tanpa detail database
+ *    - User tidak perlu tahu relasi foreign key ke buildings
+ *    - Cukup dapat Room object dengan buildingName sudah terisi (dari join)
+ * 
  * @author PETA_USU Team
  */
 public class Room {
+    
+    // === ENCAPSULATION: Field PRIVATE ===
     
     private int roomId;
     private int buildingId;
@@ -165,6 +187,8 @@ public class Room {
         this.buildingName = buildingName;
     }
     
+    // === POLYMORPHISM: Override toString() ===
+    // Format output: "FT-201 - Lab Komputer (Lt. 2)"
     @Override
     public String toString() {
         return roomCode + " - " + roomName + " (Lt. " + floorNumber + ")";
