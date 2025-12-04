@@ -34,6 +34,7 @@ public class AdminDashboard extends JFrame {
     private JPanel homePanel, statsPanel;
     private JLabel lblTotalGedung, lblTotalFakultas, lblTotalReport, lblTotalMarker;
     private JLabel lblUnreadReports, lblActiveClosures;
+    private JLabel lblTotalBuilding, lblTotalFasilitas;
     private JPanel recentActivityPanel;
     private JPanel chartPanel;
     
@@ -182,8 +183,8 @@ public class AdminDashboard extends JFrame {
         JPanel topSection = new JPanel(new BorderLayout(10, 10));
         topSection.setBackground(Color.WHITE);
         
-        // Primary Statistics Panel (2x2 Grid)
-        statsPanel = new JPanel(new GridLayout(2, 2, 15, 15));
+        // Primary Statistics Panel (2x3 Grid)
+        statsPanel = new JPanel(new GridLayout(2, 3, 15, 15));
         statsPanel.setBackground(Color.WHITE);
         
         // Stat Cards dengan icon dan detail
@@ -200,10 +201,18 @@ public class AdminDashboard extends JFrame {
         JPanel cardMarker = createEnhancedStatCard("Total Jalan", "0", "🛣️", new Color(108, 117, 125), "");
         lblTotalMarker = (JLabel) ((JPanel)cardMarker.getComponent(1)).getComponent(2);
         
+        JPanel cardBuilding = createEnhancedStatCard("Total Building", "0", "🏗️", new Color(156, 39, 176), "");
+        lblTotalBuilding = (JLabel) ((JPanel)cardBuilding.getComponent(1)).getComponent(2);
+        
+        JPanel cardFasilitas = createEnhancedStatCard("Total Fasilitas", "0", "🏪", new Color(0, 150, 136), "");
+        lblTotalFasilitas = (JLabel) ((JPanel)cardFasilitas.getComponent(1)).getComponent(2);
+        
         statsPanel.add(cardFakultas);
         statsPanel.add(cardGedung);
         statsPanel.add(cardReport);
         statsPanel.add(cardMarker);
+        statsPanel.add(cardBuilding);
+        statsPanel.add(cardFasilitas);
         
         topSection.add(statsPanel, BorderLayout.CENTER);
         
@@ -600,6 +609,8 @@ public class AdminDashboard extends JFrame {
             private int totalJalan = 0;
             private int unreadReports = 0;
             private int activeClosures = 0;
+            private int totalBuilding = 0;
+            private int totalFasilitas = 0;
             
             @Override
             protected Void doInBackground() throws Exception {
@@ -615,9 +626,19 @@ public class AdminDashboard extends JFrame {
                     System.out.println("Total Fakultas: " + totalFakultas);
                     
                     // Hitung Gedung dari markers dengan type "Building"
-                    List<Marker> gedungList = markerDAO.getMarkersByType("Building");
+                    List<Marker> gedungList = markerDAO.getMarkersByType("Gedung");
                     totalGedung = gedungList.size();
                     System.out.println("Total Gedung: " + totalGedung);
+                    
+                    // Hitung Building dari markers dengan type "Building"
+                    List<Marker> buildingList = markerDAO.getMarkersByType("Building");
+                    totalBuilding = buildingList.size();
+                    System.out.println("Total Building: " + totalBuilding);
+                    
+                    // Hitung Fasilitas dari markers dengan type "Fasilitas"
+                    List<Marker> fasilitasList = markerDAO.getMarkersByType("Fasilitas");
+                    totalFasilitas = fasilitasList.size();
+                    System.out.println("Total Fasilitas: " + totalFasilitas);
                     
                     // Load Report statistics
                     ReportDAO reportDAO = new ReportDAO();
@@ -656,6 +677,8 @@ public class AdminDashboard extends JFrame {
                 lblTotalMarker.setText(String.valueOf(totalJalan));
                 lblUnreadReports.setText(String.valueOf(unreadReports));
                 lblActiveClosures.setText(String.valueOf(activeClosures));
+                lblTotalBuilding.setText(String.valueOf(totalBuilding));
+                lblTotalFasilitas.setText(String.valueOf(totalFasilitas));
                 
                 // Load recent activities
                 loadRecentActivities();

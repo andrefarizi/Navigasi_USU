@@ -301,7 +301,7 @@ public class AdminMapPanel extends JPanel {
         
         searchPanel.add(new JLabel("Type:"));
         cboMarkerType = new JComboBox<>(new String[]{
-            "All", "Building", "Parking", "Food Court", "ATM", "Custom"
+            "All", "Building", "Fakultas", "Gedung", "Fasilitas"
         });
         searchPanel.add(cboMarkerType);
         
@@ -397,7 +397,7 @@ public class AdminMapPanel extends JPanel {
         
         gbc.gridx = 1;
         JComboBox<String> cboType = new JComboBox<>(new String[]{
-            "Building", "Parking", "Food Court", "ATM", "Toilet", "Custom"
+            "Building", "Fakultas", "Gedung", "Fasilitas"
         });
         panel.add(cboType, gbc);
         
@@ -555,7 +555,7 @@ public class AdminMapPanel extends JPanel {
             panel.add(new JLabel("Tipe:"), gbc);
             gbc.gridx = 1;
             JComboBox<String> cboType = new JComboBox<>(new String[]{
-                "Building", "Fakultas", "Gedung", "Fasilitas", "Parking", "Gate", "Landmark"
+                "Building", "Fakultas", "Gedung", "Fasilitas"
             });
             cboType.setSelectedItem(marker.getMarkerType());
             panel.add(cboType, gbc);
@@ -740,7 +740,7 @@ public class AdminMapPanel extends JPanel {
         panel.add(new JLabel("Type:"), gbc);
         gbc.gridx = 1;
         JComboBox<String> cboType = new JComboBox<>(new String[]{
-            "Building", "Parking", "Gate", "Landmark", "Facility"
+            "Building", "Fakultas", "Gedung", "Fasilitas"
         });
         panel.add(cboType, gbc);
         
