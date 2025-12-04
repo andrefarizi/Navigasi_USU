@@ -295,16 +295,34 @@ public class AdminMapPanel extends JPanel {
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchPanel.add(new JLabel("Search:"));
         txtSearch = new JTextField(15);
+        // Add document listener for real-time search
+        txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                filterMarkers();
+            }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                filterMarkers();
+            }
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                filterMarkers();
+            }
+        });
         searchPanel.add(txtSearch);
         
         searchPanel.add(new JLabel("Type:"));
         cboMarkerType = new JComboBox<>(new String[]{
             "All", "Building", "Fakultas", "Gedung", "Fasilitas"
         });
+        // Add action listener for filter by type
+        cboMarkerType.addActionListener(e -> filterMarkers());
         searchPanel.add(cboMarkerType);
         
         btnRefresh = new JButton("Refresh");
-        btnRefresh.addActionListener(e -> loadMarkers());
+        btnRefresh.addActionListener(e -> {
+            txtSearch.setText("");
+            cboMarkerType.setSelectedIndex(0);
+            loadMarkers();
+        });
         searchPanel.add(btnRefresh);
         
         panel.add(searchPanel, BorderLayout.NORTH);
@@ -367,6 +385,85 @@ public class AdminMapPanel extends JPanel {
         }
         
         refreshMap();
+    }
+    
+    /**
+     * Filter markers based on search text and type filter
+     */
+    private void filterMarkers() {
+        tableModel.setRowCount(0);
+        
+        String searchText = txtSearch.getText().toLowerCase().trim();
+        String selectedType = (String) cboMarkerType.getSelectedItem();
+        
+        List<Marker> markers = markerDAO.getAllMarkers();
+        
+        for (Marker marker : markers) {
+            // Filter by type
+            if (!selectedType.equals("All") && !marker.getMarkerType().equals(selectedType)) {
+                continue;
+            }
+            
+            // Filter by search text (search in name)
+            if (!searchText.isEmpty() && 
+                !marker.getMarkerName().toLowerCase().contains(searchText)) {
+                continue;
+            }
+            
+            // Add to table if passes all filters
+            tableModel.addRow(new Object[]{
+                marker.getMarkerId(),
+                marker.getMarkerName(),
+                marker.getMarkerType(),
+                marker.getLatitude(),
+                marker.getLongitude(),
+                marker.isActive() ? "Yes" : "No"
+            });
+        }
+        
+        // Update map to show only filtered markers
+        refreshMapWithFilter(searchText, selectedType);
+    }
+    
+    /**
+     * Refresh map with filtered markers
+     */
+    private void refreshMapWithFilter(String searchText, String selectedType) {
+        waypoints.clear();
+        List<Marker> markers = markerDAO.getAllMarkers();
+        
+        for (Marker marker : markers) {
+            if (!marker.isActive()) {
+                continue;
+            }
+            
+            // Apply same filters
+            if (!selectedType.equals("All") && !marker.getMarkerType().equals(selectedType)) {
+                continue;
+            }
+            
+            if (!searchText.isEmpty() && 
+                !marker.getMarkerName().toLowerCase().contains(searchText)) {
+                continue;
+            }
+            
+            GeoPosition pos = new GeoPosition(marker.getLatitude(), marker.getLongitude());
+            DraggableWaypoint wp = new DraggableWaypoint(
+                marker.getMarkerId(),
+                marker.getMarkerName(), 
+                pos,
+                marker.getIconPath()
+            );
+            waypoints.add(wp);
+        }
+        
+        // Create custom painter untuk drag-drop markers
+        DraggableWaypointPainter painter = new DraggableWaypointPainter();
+        painter.setWaypoints(waypoints);
+        
+        // Set painter to map
+        mapViewer.setOverlayPainter(painter);
+        mapViewer.repaint();
     }
     
     private void showAddMarkerDialog() {
