@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Dec 04, 2025 at 04:09 AM
+-- Generation Time: Dec 04, 2025 at 05:22 AM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.16
 
@@ -20,28 +20,6 @@ SET time_zone = "+00:00";
 --
 -- Database: `navigasi_usu`
 --
-
--- --------------------------------------------------------
-
---
--- Table structure for table `buildings`
---
-
-CREATE TABLE `buildings` (
-  `building_id` int NOT NULL,
-  `building_code` varchar(20) NOT NULL,
-  `building_name` varchar(100) NOT NULL,
-  `building_type` enum('fakultas','gedung','musholla','perpustakaan','stadion','masjid') NOT NULL,
-  `description` text,
-  `latitude` decimal(10,8) NOT NULL,
-  `longitude` decimal(11,8) NOT NULL,
-  `address` text,
-  `floor_count` int DEFAULT '1',
-  `icon_path` varchar(255) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -172,26 +150,6 @@ INSERT INTO `road_closures` (`closure_id`, `road_id`, `closure_type`, `reason`, 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `rooms`
---
-
-CREATE TABLE `rooms` (
-  `room_id` int NOT NULL,
-  `building_id` int NOT NULL,
-  `room_code` varchar(50) NOT NULL,
-  `room_name` varchar(100) DEFAULT NULL,
-  `floor_number` int NOT NULL,
-  `room_type` enum('classroom','laboratory','office','auditorium','other') DEFAULT 'classroom',
-  `capacity` int DEFAULT NULL,
-  `description` text,
-  `is_available` tinyint(1) DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `users`
 --
 
@@ -217,16 +175,6 @@ INSERT INTO `users` (`user_id`, `nim`, `password`, `name`, `email`, `role`, `cre
 --
 -- Indexes for dumped tables
 --
-
---
--- Indexes for table `buildings`
---
-ALTER TABLE `buildings`
-  ADD PRIMARY KEY (`building_id`),
-  ADD UNIQUE KEY `building_code` (`building_code`),
-  ADD KEY `idx_type` (`building_type`),
-  ADD KEY `idx_active` (`is_active`),
-  ADD KEY `idx_buildings_location` (`latitude`,`longitude`);
 
 --
 -- Indexes for table `markers`
@@ -267,14 +215,6 @@ ALTER TABLE `road_closures`
   ADD KEY `idx_dates` (`start_date`,`end_date`);
 
 --
--- Indexes for table `rooms`
---
-ALTER TABLE `rooms`
-  ADD PRIMARY KEY (`room_id`),
-  ADD KEY `idx_building` (`building_id`),
-  ADD KEY `idx_floor` (`floor_number`);
-
---
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -284,12 +224,6 @@ ALTER TABLE `users`
 --
 -- AUTO_INCREMENT for dumped tables
 --
-
---
--- AUTO_INCREMENT for table `buildings`
---
-ALTER TABLE `buildings`
-  MODIFY `building_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `markers`
@@ -316,12 +250,6 @@ ALTER TABLE `road_closures`
   MODIFY `closure_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
--- AUTO_INCREMENT for table `rooms`
---
-ALTER TABLE `rooms`
-  MODIFY `room_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
@@ -343,12 +271,6 @@ ALTER TABLE `markers`
 ALTER TABLE `road_closures`
   ADD CONSTRAINT `road_closures_ibfk_1` FOREIGN KEY (`road_id`) REFERENCES `roads` (`road_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `road_closures_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL;
-
---
--- Constraints for table `rooms`
---
-ALTER TABLE `rooms`
-  ADD CONSTRAINT `rooms_ibfk_1` FOREIGN KEY (`building_id`) REFERENCES `buildings` (`building_id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
