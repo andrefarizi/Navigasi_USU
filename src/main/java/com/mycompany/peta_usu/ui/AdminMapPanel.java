@@ -30,7 +30,6 @@ import javax.imageio.ImageIO;
 public class AdminMapPanel extends JPanel {
     
     private MarkerDAO markerDAO;
-    private BuildingDAO buildingDAO;
     private int currentUserId;
     
     // UI Components
@@ -52,7 +51,6 @@ public class AdminMapPanel extends JPanel {
     public AdminMapPanel(int userId) {
         this.currentUserId = userId;
         this.markerDAO = new MarkerDAO();
-        this.buildingDAO = new BuildingDAO();
         this.waypoints = new HashSet<>();
         
         initComponents();

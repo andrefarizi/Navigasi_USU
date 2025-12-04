@@ -6,19 +6,81 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * MarkerDAO - Data Access Object untuk Marker
- * Menangani semua operasi CRUD untuk custom markers
+ * Extends BaseDAO untuk Inheritance & Abstraction
+ * Implements CRUDService untuk Polymorphism
  * 
  * @author PETA_USU Team
  */
-public class MarkerDAO {
-    
-    private static final Logger logger = Logger.getLogger(MarkerDAO.class.getName());
+public class MarkerDAO extends BaseDAO<Marker> {
     
     public MarkerDAO() {
+        super();
+    }
+    
+    @Override
+    protected String getTableName() {
+        return "markers";
+    }
+    
+    @Override
+    protected String getPrimaryKeyColumn() {
+        return "marker_id";
+    }
+    
+    @Override
+    protected Marker mapResultSetToEntity(ResultSet rs) throws SQLException {
+        return mapResultSetToMarker(rs);
+    }
+    
+    /**
+     * Get all active markers (implements interface)
+     */
+    @Override
+    public List<Marker> getAll() {
+        return getAllMarkers();
+    }
+    
+    /**
+     * Get marker by ID (implements interface)
+     */
+    @Override
+    public Marker getById(int id) {
+        return getMarkerById(id);
+    }
+    
+    /**
+     * Insert marker (implements interface)
+     */
+    @Override
+    public boolean insert(Marker marker) {
+        return insertMarker(marker);
+    }
+    
+    /**
+     * Update marker (implements interface)
+     */
+    @Override
+    public boolean update(Marker marker) {
+        return updateMarker(marker);
+    }
+    
+    /**
+     * Delete marker (implements interface)
+     */
+    @Override
+    public boolean delete(int id) {
+        return deleteMarker(id);
+    }
+    
+    /**
+     * Search markers (implements interface)
+     */
+    @Override
+    public List<Marker> search(String keyword) {
+        return searchMarkers(keyword);
     }
     
     /**
@@ -28,8 +90,7 @@ public class MarkerDAO {
         List<Marker> markers = new ArrayList<>();
         String sql = "SELECT * FROM markers WHERE is_active = TRUE ORDER BY marker_name";
         
-        try (Connection connection = DatabaseConnection.getInstance().getConnection();
-             Statement stmt = connection.createStatement();
+        try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
@@ -50,8 +111,7 @@ public class MarkerDAO {
         List<Marker> markers = new ArrayList<>();
         String sql = "SELECT * FROM markers WHERE marker_type = ? AND is_active = TRUE ORDER BY marker_name";
         
-        try (Connection connection = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, markerType);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -73,8 +133,7 @@ public class MarkerDAO {
     public Marker getMarkerById(int markerId) {
         String sql = "SELECT * FROM markers WHERE marker_id = ?";
         
-        try (Connection connection = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, markerId);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -98,8 +157,7 @@ public class MarkerDAO {
                     "longitude, icon_path, icon_name, created_by, is_active) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        try (Connection connection = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, marker.getMarkerName());
             pstmt.setString(2, marker.getMarkerType());
             pstmt.setString(3, marker.getDescription());
@@ -235,6 +293,32 @@ public class MarkerDAO {
         }
         
         return false;
+    }
+    
+    /**
+     * Search markers by keyword (name or type)
+     */
+    public List<Marker> searchMarkers(String keyword) {
+        List<Marker> markers = new ArrayList<>();
+        String sql = "SELECT * FROM markers WHERE (marker_name LIKE ? OR marker_type LIKE ?) " +
+                    "AND is_active = TRUE ORDER BY marker_name";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            String searchPattern = "%" + keyword + "%";
+            pstmt.setString(1, searchPattern);
+            pstmt.setString(2, searchPattern);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    markers.add(mapResultSetToMarker(rs));
+                }
+            }
+            
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Error searching markers", e);
+        }
+        
+        return markers;
     }
     
     /**

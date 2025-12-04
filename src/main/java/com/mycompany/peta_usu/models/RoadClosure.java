@@ -7,10 +7,11 @@ import java.sql.Timestamp;
 /**
  * RoadClosure Model Class
  * Merepresentasikan penutupan jalan di area USU
+ * Extends BaseModel untuk Inheritance
  * 
  * @author PETA_USU Team
  */
-public class RoadClosure {
+public class RoadClosure extends BaseModel {
     
     private int closureId;
     private int roadId;
@@ -20,10 +21,7 @@ public class RoadClosure {
     private Date endDate;
     private Time startTime;
     private Time endTime;
-    private boolean isActive;
     private int createdBy;
-    private Timestamp createdAt;
-    private Timestamp updatedAt;
     
     // Road details (from join)
     private String roadName;
@@ -57,14 +55,14 @@ public class RoadClosure {
     
     // Constructors
     public RoadClosure() {
-        this.isActive = true;
+        super(); // Call parent constructor
     }
     
     public RoadClosure(int roadId, ClosureType closureType, String reason) {
+        super(); // Call parent constructor
         this.roadId = roadId;
         this.closureType = closureType;
         this.reason = reason;
-        this.isActive = true;
     }
     
     // Getters and Setters
@@ -132,13 +130,7 @@ public class RoadClosure {
         this.endTime = endTime;
     }
     
-    public boolean isActive() {
-        return isActive;
-    }
-    
-    public void setActive(boolean isActive) {
-        this.isActive = isActive;
-    }
+    // isActive inherited from BaseModel
     
     public int getCreatedBy() {
         return createdBy;
@@ -148,21 +140,7 @@ public class RoadClosure {
         this.createdBy = createdBy;
     }
     
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public Timestamp getUpdatedAt() {
-        return updatedAt;
-    }
-    
-    public void setUpdatedAt(Timestamp updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    // createdAt, updatedAt inherited from BaseModel
     
     public String getRoadName() {
         return roadName;

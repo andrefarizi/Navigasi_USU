@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Dec 02, 2025 at 04:31 PM
+-- Generation Time: Dec 04, 2025 at 04:09 AM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.16
 
@@ -20,28 +20,6 @@ SET time_zone = "+00:00";
 --
 -- Database: `navigasi_usu`
 --
-
--- --------------------------------------------------------
-
---
--- Table structure for table `buildings`
---
-
-CREATE TABLE `buildings` (
-  `building_id` int NOT NULL,
-  `building_code` varchar(20) NOT NULL,
-  `building_name` varchar(100) NOT NULL,
-  `building_type` enum('fakultas','gedung','musholla','perpustakaan','stadion','masjid') NOT NULL,
-  `description` text,
-  `latitude` decimal(10,8) NOT NULL,
-  `longitude` decimal(11,8) NOT NULL,
-  `address` text,
-  `floor_count` int DEFAULT '1',
-  `icon_path` varchar(255) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -69,10 +47,12 @@ CREATE TABLE `markers` (
 --
 
 INSERT INTO `markers` (`marker_id`, `marker_name`, `marker_type`, `description`, `latitude`, `longitude`, `icon_path`, `icon_name`, `created_by`, `is_active`, `created_at`, `updated_at`) VALUES
-(6, 'hahah', 'Building', 'Marker test halah - Jl. Alumni USU (Updated)', 3.56790516, 98.65379333, 'resources\\icons\\fe7a9ca8-8966-41ce-b63b-afa1b55d1f5c.png', 'building_eiffel_landmark_paris_tower_icon_123148.png', 1, 1, '2025-12-01 07:57:59', '2025-12-02 16:24:14'),
+(6, 'hahah', 'Building', 'Marker test halah - Jl. Alumni USU (Updated)', 3.56494974, 98.65525246, 'resources\\icons\\fe7a9ca8-8966-41ce-b63b-afa1b55d1f5c.png', 'building_eiffel_landmark_paris_tower_icon_123148.png', 1, 1, '2025-12-01 07:57:59', '2025-12-03 13:41:50'),
 (7, 'aldrik', 'Building', 'Marker test aldrik - Jl. Dr. Mansyur (Updated)', 3.56032384, 98.65952253, 'resources\\icons\\2a81beb0-804f-46bd-8388-af64b753a661.png', 'apartmentbuilding_apartamento_3490.png', 1, 0, '2025-12-01 10:13:50', '2025-12-02 11:45:55'),
 (8, 'gedung c', 'Building', 'halooo', 3.55779672, 98.65533829, 'resources\\icons\\695548db-92e1-4393-8524-68ba128ec9bd.png', 'apartmentbuilding_apartamento_3490.png', 1, 1, '2025-12-02 12:13:32', '2025-12-02 13:23:40'),
-(9, 'GDP', 'Fakultas', 'Drag to position', 3.56130899, 98.65965128, 'resources\\icons\\d8574999-669d-4fcf-9a04-3b8635fb4b40.png', 'apartmentbuilding_apartamento_3490.png', 1, 1, '2025-12-02 14:44:28', '2025-12-02 14:44:43');
+(9, 'GDP', 'Fakultas', 'Drag to position', 3.56130899, 98.65965128, 'resources\\icons\\d8574999-669d-4fcf-9a04-3b8635fb4b40.png', 'apartmentbuilding_apartamento_3490.png', 1, 1, '2025-12-02 14:44:28', '2025-12-02 14:44:43'),
+(10, 'dvbsdb', 'Building', 'dbdsb', 3.56128757, 98.65387917, 'resources\\icons\\0773fb8b-babd-43cb-b2ff-2cb1a5c5763c.png', 'building_eiffel_landmark_paris_tower_icon_123148.png', 1, 1, '2025-12-03 13:41:42', '2025-12-04 03:52:32'),
+(11, 'perpus', 'Gedung', 'haloo', 3.55948861, 98.65574598, 'resources\\icons\\5bd9ac02-b4b2-4732-909e-47e98962340a.png', 'building_eiffel_landmark_paris_tower_icon_123148.png', 1, 1, '2025-12-04 03:52:27', '2025-12-04 03:53:09');
 
 -- --------------------------------------------------------
 
@@ -98,7 +78,10 @@ CREATE TABLE `reports` (
 --
 
 INSERT INTO `reports` (`report_id`, `user_nim`, `user_name`, `location`, `latitude`, `longitude`, `description`, `report_type`, `created_at`, `is_read`) VALUES
-(1, 'GUEST', 'Guest User', 'sasdsq', 3.5688000000000075, 98.66179999999999, 'affasfvwefw', 'JALAN_RUSAK', '2025-12-02 16:11:24', 1);
+(1, 'GUEST', 'Guest User', 'sasdsq', 3.5688000000000075, 98.66179999999999, 'affasfvwefw', 'JALAN_RUSAK', '2025-12-02 16:11:24', 1),
+(2, 'GUEST', 'Guest User', 'saasv', 3.5688000000000075, 98.66179999999999, 'asvsav', 'JALAN_RUSAK', '2025-12-02 16:39:19', 0),
+(3, 'GUEST', 'Guest User', 'asvvsa', 3.5688000000000075, 98.66179999999999, 'savasv', 'JALAN_RUSAK', '2025-12-02 16:39:25', 1),
+(4, 'GUEST', 'Guest User', 'Jl. Universitas', 3.5680504375657836, 98.66128501586913, 'jalan nya banjir', 'JALAN_RUSAK', '2025-12-04 03:57:11', 0);
 
 -- --------------------------------------------------------
 
@@ -132,7 +115,8 @@ CREATE TABLE `roads` (
 --
 
 INSERT INTO `roads` (`road_id`, `road_name`, `road_type`, `start_lat`, `start_lng`, `end_lat`, `end_lng`, `is_one_way`, `direction`, `is_active`, `created_at`, `updated_at`, `polyline_points`, `google_road_name`, `road_segments`, `last_gmaps_update`, `distance`, `description`) VALUES
-(48, 'Jl. politeknik', 'closed', 3.56237980, 98.65304232, 3.56259396, 98.65615368, 0, 'normal', 1, '2025-12-02 14:38:20', '2025-12-02 14:38:44', '{wvTwdcyQQ?CmBEiDMsH', 'Jl. Tri Dharma', NULL, '2025-12-02 14:38:44', 337, '');
+(48, 'Jl. politeknik', 'closed', 3.56237980, 98.65304232, 3.56259396, 98.65615368, 0, 'normal', 1, '2025-12-02 14:38:20', '2025-12-02 14:38:44', '{wvTwdcyQQ?CmBEiDMsH', 'Jl. Tri Dharma', NULL, '2025-12-02 14:38:44', 337, ''),
+(50, 'Jl Alumni', 'oneway', 3.56290450, 98.65775228, 3.56288308, 98.65894318, 1, 'normal', 1, '2025-12-04 04:01:27', '2025-12-04 04:02:42', 'k{vT}adyQCqHPCAfA', 'Jl. Alumni', NULL, '2025-12-04 04:01:42', 219, '');
 
 -- --------------------------------------------------------
 
@@ -155,25 +139,13 @@ CREATE TABLE `road_closures` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- --------------------------------------------------------
-
 --
--- Table structure for table `rooms`
+-- Dumping data for table `road_closures`
 --
 
-CREATE TABLE `rooms` (
-  `room_id` int NOT NULL,
-  `building_id` int NOT NULL,
-  `room_code` varchar(50) NOT NULL,
-  `room_name` varchar(100) DEFAULT NULL,
-  `floor_number` int NOT NULL,
-  `room_type` enum('classroom','laboratory','office','auditorium','other') DEFAULT 'classroom',
-  `capacity` int DEFAULT NULL,
-  `description` text,
-  `is_available` tinyint(1) DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO `road_closures` (`closure_id`, `road_id`, `closure_type`, `reason`, `start_date`, `end_date`, `start_time`, `end_time`, `is_active`, `created_by`, `created_at`, `updated_at`) VALUES
+(15, 48, 'temporary', 'balalal', '2025-12-01', '2025-12-31', NULL, NULL, 1, 1, '2025-12-04 03:48:00', '2025-12-04 03:48:00'),
+(16, 50, 'permanent', 'Diatur melalui Peta Jalan', '2025-12-04', '2025-12-05', NULL, NULL, 1, 1, '2025-12-04 04:03:42', '2025-12-04 04:03:42');
 
 -- --------------------------------------------------------
 
@@ -203,16 +175,6 @@ INSERT INTO `users` (`user_id`, `nim`, `password`, `name`, `email`, `role`, `cre
 --
 -- Indexes for dumped tables
 --
-
---
--- Indexes for table `buildings`
---
-ALTER TABLE `buildings`
-  ADD PRIMARY KEY (`building_id`),
-  ADD UNIQUE KEY `building_code` (`building_code`),
-  ADD KEY `idx_type` (`building_type`),
-  ADD KEY `idx_active` (`is_active`),
-  ADD KEY `idx_buildings_location` (`latitude`,`longitude`);
 
 --
 -- Indexes for table `markers`
@@ -253,14 +215,6 @@ ALTER TABLE `road_closures`
   ADD KEY `idx_dates` (`start_date`,`end_date`);
 
 --
--- Indexes for table `rooms`
---
-ALTER TABLE `rooms`
-  ADD PRIMARY KEY (`room_id`),
-  ADD KEY `idx_building` (`building_id`),
-  ADD KEY `idx_floor` (`floor_number`);
-
---
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -272,40 +226,28 @@ ALTER TABLE `users`
 --
 
 --
--- AUTO_INCREMENT for table `buildings`
---
-ALTER TABLE `buildings`
-  MODIFY `building_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
-
---
 -- AUTO_INCREMENT for table `markers`
 --
 ALTER TABLE `markers`
-  MODIFY `marker_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `marker_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `reports`
 --
 ALTER TABLE `reports`
-  MODIFY `report_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `report_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `roads`
 --
 ALTER TABLE `roads`
-  MODIFY `road_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
+  MODIFY `road_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
 
 --
 -- AUTO_INCREMENT for table `road_closures`
 --
 ALTER TABLE `road_closures`
-  MODIFY `closure_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
-
---
--- AUTO_INCREMENT for table `rooms`
---
-ALTER TABLE `rooms`
-  MODIFY `room_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `closure_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -329,12 +271,6 @@ ALTER TABLE `markers`
 ALTER TABLE `road_closures`
   ADD CONSTRAINT `road_closures_ibfk_1` FOREIGN KEY (`road_id`) REFERENCES `roads` (`road_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `road_closures_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL;
-
---
--- Constraints for table `rooms`
---
-ALTER TABLE `rooms`
-  ADD CONSTRAINT `rooms_ibfk_1` FOREIGN KEY (`building_id`) REFERENCES `buildings` (`building_id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

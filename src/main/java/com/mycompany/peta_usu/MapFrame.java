@@ -4,17 +4,14 @@
  */
 package com.mycompany.peta_usu;
 
-import com.mycompany.peta_usu.dao.BuildingDAO;
 import com.mycompany.peta_usu.dao.MarkerDAO;
 import com.mycompany.peta_usu.dao.RoadDAO;
 import com.mycompany.peta_usu.dao.RoadClosureDAO;
 import com.mycompany.peta_usu.dao.ReportDAO;
-import com.mycompany.peta_usu.models.Building;
 import com.mycompany.peta_usu.models.Marker;
 import com.mycompany.peta_usu.models.Road;
 import com.mycompany.peta_usu.models.RoadClosure;
 import com.mycompany.peta_usu.models.Report;
-import com.mycompany.peta_usu.ui.BuildingInfoDialog;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
@@ -88,11 +85,9 @@ public class MapFrame extends javax.swing.JFrame {
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(MapFrame.class.getName());
     
     // Database DAO
-    private BuildingDAO buildingDAO;
     private MarkerDAO markerDAO;
     private RoadDAO roadDAO;
     private RoadClosureDAO roadClosureDAO;
-    private List<Building> buildings;
     private List<Marker> markers;
     private List<Road> roads;
     private List<RoadClosure> activeClosures;
@@ -106,16 +101,14 @@ public class MapFrame extends javax.swing.JFrame {
     
     /**
      * Creates new form MapFrame
-     * Inisialisasi dengan DAO untuk load building data
+     * Inisialisasi dengan DAO untuk load data
      */
     public MapFrame(String nim) {
         this.studentNim = nim;
         this.waypoints = java.util.Collections.synchronizedSet(new HashSet<>());
-        this.buildingDAO = new BuildingDAO();
         this.markerDAO = new MarkerDAO();
         this.roadDAO = new RoadDAO();
         this.roadClosureDAO = new RoadClosureDAO();
-        this.buildings = new ArrayList<>();
         this.markers = new ArrayList<>();
         this.roads = new ArrayList<>();
         this.activeClosures = new ArrayList<>();
@@ -134,7 +127,6 @@ public class MapFrame extends javax.swing.JFrame {
             protected Void doInBackground() throws Exception {
                 initComponents();
                 setupMapUI();
-                loadBuildingsFromDatabase();
                 loadMarkersFromDatabase();
                 loadRoadsFromDatabase();
                
@@ -153,36 +145,7 @@ public class MapFrame extends javax.swing.JFrame {
         worker.execute();
     }
     
-    /**
-     * Load buildings dari database
-     */
-    private void loadBuildingsFromDatabase() {
-        try {
-            buildings = buildingDAO.getAllBuildings();
-            logger.info("Loaded " + buildings.size() + " buildings from database");
-            
-            // Add buildings sebagai waypoints
-            for (Building building : buildings) {
-                CustomWaypoint wp = new CustomWaypoint(
-                    building.getBuildingName(),
-                    new GeoPosition(building.getLatitude(), building.getLongitude()),
-                    building.getBuildingType().getValue(),
-                    null, // no custom icon for buildings
-                    building.getDescription() != null ? building.getDescription() : ""
-                );
-                waypoints.add(wp);
-            }
-            
-            // Update combo boxes after buildings loaded
-            SwingUtilities.invokeLater(() -> {
-                updateLocationComboBoxes();
-            });
-            
-        } catch (Exception e) {
-            logger.warning("Failed to load buildings: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
+
     
     /**
      * Load markers with custom icons from database (uploaded by admin)

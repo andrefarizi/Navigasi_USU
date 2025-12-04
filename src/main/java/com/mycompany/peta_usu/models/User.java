@@ -129,6 +129,32 @@ public class User {
         return this.role == UserRole.ADMIN;
     }
     
+    /**
+     * Check if user has permission
+     * Polymorphism: Method overloading
+     */
+    public boolean hasPermission(String permission) {
+        if (this.role == UserRole.ADMIN) {
+            return true; // Admin has all permissions
+        }
+        return permission.equals("read"); // User only has read permission
+    }
+    
+    /**
+     * Overloaded version - check multiple permissions
+     */
+    public boolean hasPermission(String... permissions) {
+        if (this.role == UserRole.ADMIN) {
+            return true;
+        }
+        for (String permission : permissions) {
+            if (!permission.equals("read")) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
     @Override
     public String toString() {
         return name + " (" + nim + ")";

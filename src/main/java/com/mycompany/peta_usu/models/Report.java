@@ -4,8 +4,9 @@ import java.sql.Timestamp;
 
 /**
  * Model class for user reports
+ * Extends BaseModel untuk Inheritance
  */
-public class Report {
+public class Report extends BaseModel {
     
     private int reportId;
     private String userNim;
@@ -15,7 +16,6 @@ public class Report {
     private double longitude;
     private String description;
     private ReportType reportType;
-    private Timestamp createdAt;
     private boolean isRead;
     
     /**
@@ -50,11 +50,13 @@ public class Report {
     
     // Constructors
     public Report() {
+        super(); // Call parent constructor
     }
     
     public Report(String userNim, String userName, String location, 
                  double latitude, double longitude, String description, 
                  ReportType reportType) {
+        super(); // Call parent constructor
         this.userNim = userNim;
         this.userName = userName;
         this.location = location;
@@ -130,13 +132,7 @@ public class Report {
         this.reportType = reportType;
     }
     
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
+    // createdAt inherited from BaseModel
     
     public boolean isRead() {
         return isRead;
@@ -144,5 +140,10 @@ public class Report {
     
     public void setRead(boolean isRead) {
         this.isRead = isRead;
+    }
+    
+    @Override
+    public String toString() {
+        return reportType.toString() + " - " + location;
     }
 }

@@ -5,10 +5,11 @@ import java.sql.Timestamp;
 /**
  * Marker Model Class
  * Merepresentasikan custom markers yang ditambahkan admin
+ * Extends BaseModel untuk Inheritance
  * 
  * @author PETA_USU Team
  */
-public class Marker {
+public class Marker extends BaseModel {
     
     private int markerId;
     private String markerName;
@@ -19,21 +20,18 @@ public class Marker {
     private String iconPath;
     private String iconName;
     private int createdBy;
-    private boolean isActive;
-    private Timestamp createdAt;
-    private Timestamp updatedAt;
     
     // Constructors
     public Marker() {
-        this.isActive = true;
+        super(); // Call parent constructor
     }
     
     public Marker(String markerName, String markerType, double latitude, double longitude) {
+        super(); // Call parent constructor
         this.markerName = markerName;
         this.markerType = markerType;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.isActive = true;
     }
     
     // Getters and Setters
@@ -109,29 +107,7 @@ public class Marker {
         this.createdBy = createdBy;
     }
     
-    public boolean isActive() {
-        return isActive;
-    }
-    
-    public void setActive(boolean isActive) {
-        this.isActive = isActive;
-    }
-    
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-    
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public Timestamp getUpdatedAt() {
-        return updatedAt;
-    }
-    
-    public void setUpdatedAt(Timestamp updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    // isActive(), createdAt, updatedAt inherited from BaseModel
     
     @Override
     public String toString() {

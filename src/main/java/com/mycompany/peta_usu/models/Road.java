@@ -4,8 +4,9 @@ import java.sql.Timestamp;
 
 /**
  * Model untuk tabel roads
+ * Extends BaseModel untuk Inheritance
  */
-public class Road {
+public class Road extends BaseModel {
     private int roadId;
     private String roadName;
     private RoadType roadType;
@@ -20,8 +21,6 @@ public class Road {
     private String googleRoadName; // Road name from Google Maps API (e.g., "Jl. Alumni")
     private String roadSegments; // JSON array of road segments
     private Timestamp lastGmapsUpdate; // Last Google Maps data fetch
-    private Timestamp createdAt;
-    private Timestamp updatedAt;
     
     public enum RoadType {
         NORMAL("main", "Jalan Normal"),
@@ -51,10 +50,13 @@ public class Road {
         }
     }
     
-    public Road() {}
+    public Road() {
+        super(); // Call parent constructor
+    }
     
     public Road(int roadId, String roadName, RoadType roadType, double startLat, 
                 double startLng, double endLat, double endLng) {
+        super(); // Call parent constructor
         this.roadId = roadId;
         this.roadName = roadName;
         this.roadType = roadType;
@@ -107,11 +109,7 @@ public class Road {
     public Timestamp getLastGmapsUpdate() { return lastGmapsUpdate; }
     public void setLastGmapsUpdate(Timestamp lastGmapsUpdate) { this.lastGmapsUpdate = lastGmapsUpdate; }
     
-    public Timestamp getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
-    
-    public Timestamp getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Timestamp updatedAt) { this.updatedAt = updatedAt; }
+    // createdAt, updatedAt inherited from BaseModel
     
     @Override
     public String toString() {
