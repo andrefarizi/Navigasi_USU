@@ -7,6 +7,7 @@ com\mycompany\peta_usu\models\Building.class
 com\mycompany\peta_usu\models\Road.class
 com\mycompany\peta_usu\dao\ReportDAO.class
 com\mycompany\peta_usu\PETA_USU$2.class
+com\mycompany\peta_usu\MapFrame$15.class
 com\mycompany\peta_usu\ui\RoadMapPanel$CustomMapMouseListener.class
 com\mycompany\peta_usu\utils\IconUploadManager.class
 com\mycompany\peta_usu\MapFrame$2.class
@@ -30,6 +31,7 @@ com\mycompany\peta_usu\services\PathfindingService$Node.class
 com\mycompany\peta_usu\dao\RoomDAO.class
 com\mycompany\peta_usu\MapFrame$3.class
 com\mycompany\peta_usu\ui\RoadMapPanel$6.class
+com\mycompany\peta_usu\MapFrame$13.class
 com\mycompany\peta_usu\ui\AdminMapPanel$DraggableWaypointPainter.class
 com\mycompany\peta_usu\ui\RoomManagementPanel$2.class
 com\mycompany\peta_usu\utils\GoogleMapsHelper.class
@@ -41,6 +43,7 @@ com\mycompany\peta_usu\LoginFrame$2.class
 com\mycompany\peta_usu\services\DirectionsService$DirectionsResult.class
 com\mycompany\peta_usu\dao\RoadClosureDAO.class
 com\mycompany\peta_usu\ui\BuildingManagementPanel$1.class
+com\mycompany\peta_usu\MapFrame$12.class
 com\mycompany\peta_usu\MapFrame$9.class
 com\mycompany\peta_usu\utils\MapRefreshUtil.class
 com\mycompany\peta_usu\ui\RoadMapPanel$7.class
@@ -67,12 +70,14 @@ com\mycompany\peta_usu\ui\BuildingInfoDialog.class
 com\mycompany\peta_usu\dao\BuildingDAO.class
 com\mycompany\peta_usu\ui\AdminMapPanel$5.class
 com\mycompany\peta_usu\ui\RoadManagementPanel$1.class
+com\mycompany\peta_usu\MapFrame$14.class
 com\mycompany\peta_usu\MapFrame$4.class
 com\mycompany\peta_usu\ui\AdminDashboard$3.class
 com\mycompany\peta_usu\MapFrame$1.class
 com\mycompany\peta_usu\PETA_USU$1.class
 com\mycompany\peta_usu\MapFrame.class
 com\mycompany\peta_usu\ui\AdminMapPanel$2.class
+com\mycompany\peta_usu\MapFrame$11.class
 com\mycompany\peta_usu\ui\BuildingManagementPanel.class
 com\mycompany\peta_usu\ui\UserMapFrame.class
 com\mycompany\peta_usu\ui\RoadMapPanel$10.class
