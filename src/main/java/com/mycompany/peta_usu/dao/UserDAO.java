@@ -29,7 +29,8 @@ public class UserDAO {
     public User authenticate(String nim, String password) {
         String sql = "SELECT * FROM users WHERE nim = ? AND password = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, nim);
             pstmt.setString(2, password); // Note: Gunakan password hashing di production
             
@@ -53,7 +54,8 @@ public class UserDAO {
     public User getUserByNim(String nim) {
         String sql = "SELECT * FROM users WHERE nim = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, nim);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -75,7 +77,8 @@ public class UserDAO {
     public User getUserById(int userId) {
         String sql = "SELECT * FROM users WHERE user_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, userId);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -97,7 +100,8 @@ public class UserDAO {
     public boolean registerUser(User user) {
         String sql = "INSERT INTO users (nim, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, user.getNim());
             pstmt.setString(2, user.getPassword()); // Note: Hash password di production
             pstmt.setString(3, user.getName());
@@ -129,7 +133,8 @@ public class UserDAO {
     public boolean updateUser(User user) {
         String sql = "UPDATE users SET name = ?, email = ?, role = ? WHERE user_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, user.getName());
             pstmt.setString(2, user.getEmail());
             pstmt.setString(3, user.getRole().getValue());
@@ -155,7 +160,8 @@ public class UserDAO {
     public boolean changePassword(int userId, String newPassword) {
         String sql = "UPDATE users SET password = ? WHERE user_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, newPassword); // Note: Hash password di production
             pstmt.setInt(2, userId);
             
@@ -180,7 +186,8 @@ public class UserDAO {
         List<User> users = new ArrayList<>();
         String sql = "SELECT * FROM users ORDER BY name";
         
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
@@ -200,7 +207,8 @@ public class UserDAO {
     public boolean nimExists(String nim) {
         String sql = "SELECT COUNT(*) FROM users WHERE nim = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, nim);
             
             try (ResultSet rs = pstmt.executeQuery()) {

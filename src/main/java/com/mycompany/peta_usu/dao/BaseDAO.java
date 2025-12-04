@@ -85,21 +85,17 @@ public abstract class BaseDAO<T> implements CRUDService<T> {
      * @return Entity or null
      */
     protected T executeQuerySingle(String sql, Object... params) {
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        
-        try {
-            pstmt = connection.prepareStatement(sql);
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             setParameters(pstmt, params);
-            rs = pstmt.executeQuery();
             
-            if (rs.next()) {
-                return mapResultSetToEntity(rs);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToEntity(rs);
+                }
             }
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Error executing query: " + sql, e);
-        } finally {
-            closeResources(rs, pstmt);
         }
         
         return null;
@@ -138,7 +134,8 @@ public abstract class BaseDAO<T> implements CRUDService<T> {
     public int count() {
         String sql = "SELECT COUNT(*) FROM " + getTableName() + " WHERE is_active = TRUE";
         
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             if (rs.next()) {

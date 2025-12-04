@@ -90,7 +90,8 @@ public class MarkerDAO extends BaseDAO<Marker> {
         List<Marker> markers = new ArrayList<>();
         String sql = "SELECT * FROM markers WHERE is_active = TRUE ORDER BY marker_name";
         
-        try (Statement stmt = connection.createStatement();
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
@@ -111,7 +112,8 @@ public class MarkerDAO extends BaseDAO<Marker> {
         List<Marker> markers = new ArrayList<>();
         String sql = "SELECT * FROM markers WHERE marker_type = ? AND is_active = TRUE ORDER BY marker_name";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, markerType);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -133,7 +135,8 @@ public class MarkerDAO extends BaseDAO<Marker> {
     public Marker getMarkerById(int markerId) {
         String sql = "SELECT * FROM markers WHERE marker_id = ?";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, markerId);
             
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -157,7 +160,8 @@ public class MarkerDAO extends BaseDAO<Marker> {
                     "longitude, icon_path, icon_name, created_by, is_active) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setString(1, marker.getMarkerName());
             pstmt.setString(2, marker.getMarkerType());
             pstmt.setString(3, marker.getDescription());
@@ -303,7 +307,8 @@ public class MarkerDAO extends BaseDAO<Marker> {
         String sql = "SELECT * FROM markers WHERE (marker_name LIKE ? OR marker_type LIKE ?) " +
                     "AND is_active = TRUE ORDER BY marker_name";
         
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             String searchPattern = "%" + keyword + "%";
             pstmt.setString(1, searchPattern);
             pstmt.setString(2, searchPattern);
