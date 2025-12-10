@@ -92,6 +92,8 @@ public class Report {
         this.isRead = false;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Akses controlled ke field PRIVATE
     // Getters and Setters
     public int getReportId() {
         return reportId;

@@ -28,20 +28,35 @@ import java.awt.geom.Point2D;
  * - Two-way = panah dua arah
  * - Klik jalan untuk edit status
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field roadDAO, mapViewer, allRoads PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • setLayout() - set layout manager
+ *    • add() - tambah component
+ *    • setBackground() - set background color
+ *    • repaint(), revalidate() - refresh UI
+ *    - Inner class CustomMapMouseListener extends MouseAdapter (parent: java.awt.event.MouseAdapter)
+ *      Mewarisi: mouseClicked(), mousePressed(), mouseReleased(), mouseEntered(), mouseExited()
+ *    - Implements Painter<JXMapViewer> untuk custom map rendering
+ * 3. POLYMORPHISM: Override paint() untuk custom road rendering
+ * 4. ABSTRACTION: Method decodePolyline() sembunyikan Google algorithm
+ * 
  * @author PETA_USU Team
  */
-public class RoadMapPanel extends JPanel {
+public class RoadMapPanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
     
-    private RoadDAO roadDAO;
-    private RoadClosureDAO closureDAO;
-    private GoogleMapsRoadService roadService;
-    private int currentUserId;
+    // ========== ENCAPSULATION: Database & Services PRIVATE ==========
+    private RoadDAO roadDAO;                      // ← PRIVATE: Database access
+    private RoadClosureDAO closureDAO;            // ← PRIVATE: Database access
+    private GoogleMapsRoadService roadService;    // ← PRIVATE: Google API
+    private int currentUserId;                    // ← PRIVATE: Session user
     
-    // UI Components
-    private JXMapViewer mapViewer;
-    private JTable roadsTable;
-    private DefaultTableModel tableModel;
-    private JButton btnAddRoad;
+    // ========== ENCAPSULATION: UI Components PRIVATE ==========
+    private JXMapViewer mapViewer;                // ← PRIVATE: Map widget
+    private JTable roadsTable;                    // ← PRIVATE: Table
+    private DefaultTableModel tableModel;         // ← PRIVATE: Data model
+    private JButton btnAddRoad;                   // ← PRIVATE: Buttons
     private JButton btnEditRoad;
     private JButton btnDeleteRoad;
     private JButton btnSetClosure;
@@ -115,9 +130,10 @@ public class RoadMapPanel extends JPanel {
         
         // Initialize JXMapViewer with Google Maps
         mapViewer = new JXMapViewer();
+        // ========== POLYMORPHISM: Anonymous TileFactoryInfo ==========
         TileFactoryInfo info = new TileFactoryInfo(0, 17, 17, 256, true, true,
                 "http://mt0.google.com/vt/lyrs=m", "x", "y", "z") {
-            @Override
+            @Override  // ← POLYMORPHISM: Override getTileUrl untuk Google Maps tiles
             public String getTileUrl(int x, int y, int zoom) {
                 zoom = this.getTotalMapZoom() - zoom;
                 return String.format("https://mt0.google.com/vt/lyrs=m&x=%d&y=%d&z=%d", x, y, zoom);
@@ -136,8 +152,9 @@ public class RoadMapPanel extends JPanel {
         mapViewer.addMouseWheelListener(new ZoomMouseWheelListenerCursor(mapViewer));
         
         // Setup overlay painter FIRST before mouse listeners
+        // ========== POLYMORPHISM: Anonymous Painter<JXMapViewer> ==========
         mapViewer.setOverlayPainter(new Painter<JXMapViewer>() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override paint untuk draw roads
             public void paint(Graphics2D g, JXMapViewer map, int width, int height) {
                 System.out.println("🖌️ OVERLAY PAINTER CALLED!");
                 g = (Graphics2D) g.create();

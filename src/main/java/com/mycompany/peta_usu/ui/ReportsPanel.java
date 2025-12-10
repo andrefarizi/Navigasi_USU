@@ -11,17 +11,32 @@ import java.util.List;
 
 /**
  * Panel for admin to view and manage user reports
+ * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field reportDAO, table, lblUnreadCount PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • setLayout() - set layout manager
+ *    • add() - tambah component
+ *    • setBackground() - set background color
+ *    • setBorder() - set border
+ *    • revalidate() - refresh layout
+ *    • repaint() - redraw component
+ * 3. POLYMORPHISM: Override isCellEditable() untuk read-only table
+ * 4. ABSTRACTION: Method loadReports() sembunyikan DAO.getAllReports()
  */
-public class ReportsPanel extends JPanel {
+public class ReportsPanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
     
-    private static final Color PRIMARY_GREEN = new Color(46, 125, 50);
-    private static final Font TITLE_FONT = new Font("Times New Roman", Font.BOLD, 20);
-    private static final Font MAIN_FONT = new Font("Times New Roman", Font.PLAIN, 13);
+    // ========== ENCAPSULATION: Constants PRIVATE STATIC FINAL ==========
+    private static final Color PRIMARY_GREEN = new Color(46, 125, 50);  // ← PRIVATE
+    private static final Font TITLE_FONT = new Font("Times New Roman", Font.BOLD, 20);  // ← PRIVATE
+    private static final Font MAIN_FONT = new Font("Times New Roman", Font.PLAIN, 13);  // ← PRIVATE
     
-    private JTable reportsTable;
-    private DefaultTableModel tableModel;
-    private ReportDAO reportDAO;
-    private JLabel lblUnreadCount;
+    // ========== ENCAPSULATION: Field PRIVATE ==========
+    private JTable reportsTable;          // ← PRIVATE: UI component
+    private DefaultTableModel tableModel; // ← PRIVATE: Data model
+    private ReportDAO reportDAO;          // ← PRIVATE: Database access
+    private JLabel lblUnreadCount;        // ← PRIVATE: UI label
     
     public ReportsPanel() {
         reportDAO = new ReportDAO();
@@ -56,10 +71,11 @@ public class ReportsPanel extends JPanel {
         
         // Table
         String[] columns = {"ID", "NIM", "Nama", "Lokasi", "Tipe", "Deskripsi", "Waktu", "Status"};
+        // ========== POLYMORPHISM: Anonymous inner class + Override ==========
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk custom behavior
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false;  // All cells read-only (tidak bisa diedit)
             }
         };
         

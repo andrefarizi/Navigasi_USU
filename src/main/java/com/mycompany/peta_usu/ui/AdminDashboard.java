@@ -38,7 +38,9 @@ import java.util.Map;
  *    - Tujuan: Kontrol penuh terhadap tampilan UI
  * 
  * 2. INHERITANCE (Pewarisan):
- *    - Class ini EXTENDS JFrame (mewarisi semua method JFrame)
+ *    - Class ini EXTENDS JFrame (parent: javax.swing.JFrame)
+ *      Mewarisi method: setTitle(), setSize(), setDefaultCloseOperation(), setLocationRelativeTo(), 
+ *      setVisible(), add(), dispose(), setContentPane(), pack(), setResizable()
  *    - Dapatkan method: setTitle(), setSize(), add(), setVisible(), dll GRATIS
  *    - Tidak perlu coding dari nol, tinggal pakai warisan dari JFrame
  * 
@@ -155,18 +157,19 @@ public class AdminDashboard extends JFrame {
         label.setForeground(Color.WHITE);
         menuItem.add(label, BorderLayout.CENTER);
         
+        // ========== POLYMORPHISM: Anonymous MouseAdapter + Override ==========
         menuItem.addMouseListener(new MouseAdapter() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override mouseClicked untuk custom action
             public void mouseClicked(MouseEvent e) {
                 showPanel(panelName);
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk hover effect
             public void mouseEntered(MouseEvent e) {
                 menuItem.setBackground(new Color(0, 180, 180));
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk remove hover
             public void mouseExited(MouseEvent e) {
                 menuItem.setBackground(new Color(0, 153, 153));
             }

@@ -24,9 +24,17 @@ import java.io.File;
  *    - Tujuan: Keamanan form login, cegah manipulasi dari luar
  * 
  * 2. INHERITANCE (Pewarisan):
- *    - Class ini EXTENDS JFrame (mewarisi dari Java Swing)
- *    - Dapat semua method JFrame: setTitle(), setSize(), add(), dll
- *    - Anonymous inner class: new JPanel() { paintComponent() } → override method
+ *    - Class ini EXTENDS JFrame (parent: javax.swing.JFrame)
+ *    - Mewarisi method dari JFrame:
+ *      • setTitle() - set judul window
+ *      • setSize() - set ukuran window
+ *      • setDefaultCloseOperation() - set close behavior
+ *      • setLocationRelativeTo() - posisi window
+ *      • setVisible() - show/hide window
+ *      • add() - tambah component ke frame
+ *      • setContentPane() - set main container
+ *      • pack() - resize sesuai component
+ *    - Anonymous inner class: new JPanel() { paintComponent() } → override method dari JPanel
  * 
  * 3. POLYMORPHISM (Polimorfisme):
  *    - Override paintComponent() untuk custom background image

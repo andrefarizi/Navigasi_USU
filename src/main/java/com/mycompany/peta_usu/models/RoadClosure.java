@@ -89,6 +89,8 @@ public class RoadClosure {
         this.isActive = true;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Controlled access pattern
     // Getters and Setters
     public int getClosureId() {
         return closureId;

@@ -10,21 +10,31 @@ import java.util.logging.Logger;
  * DatabaseConnection - Singleton class untuk koneksi database
  * Menggunakan pattern Singleton untuk OOP
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field instance, connection PRIVATE STATIC
+ * 2. INHERITANCE: None (Singleton tidak butuh inheritance)
+ * 3. POLYMORPHISM: None (Singleton tidak butuh polymorphism)
+ * 4. ABSTRACTION: Method getInstance() sembunyikan detail instance creation
+ * 
+ * DESIGN PATTERN: Singleton - hanya 1 instance connection ke database
+ * 
  * @author PETA_USU Team
  */
 public class DatabaseConnection {
     
-    private static DatabaseConnection instance;
-    private Connection connection;
+    // ========== ENCAPSULATION: PRIVATE STATIC untuk Singleton ==========
+    private static DatabaseConnection instance;  // ← PRIVATE STATIC: Single instance
+    private Connection connection;                // ← PRIVATE: DB connection
     
-    // Database credentials
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/navigasi_usu";
+    // Database credentials (PRIVATE STATIC FINAL = constant)
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/navigasi_usu";  // ← PRIVATE
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = ""; // Sesuaikan dengan password MySQL Anda
     private static final Logger logger = Logger.getLogger(DatabaseConnection.class.getName());
     
     /**
      * Private constructor untuk implementasi Singleton pattern
+     * ← ENCAPSULATION: Constructor PRIVATE (tidak bisa `new DatabaseConnection()`)
      */
     private DatabaseConnection() {
         try {

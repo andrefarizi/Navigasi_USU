@@ -12,15 +12,27 @@ import java.util.List;
 
 /**
  * Panel CRUD untuk Buildings - Terintegrasi dengan Google Maps
+ * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field buildingDAO, table, textfield PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • setLayout() - set layout manager
+ *    • add() - tambah component
+ *    • setBackground() - set background color
+ *    • revalidate(), repaint() - refresh UI
+ * 3. POLYMORPHISM: Override isCellEditable() di DefaultTableModel
+ * 4. ABSTRACTION: Method loadBuildings() sembunyikan SQL query
  */
-public class BuildingManagementPanel extends JPanel {
-    private BuildingDAO buildingDAO;
-    private JTable buildingTable;
-    private DefaultTableModel tableModel;
-    private JTextField tfName, tfLat, tfLng, tfDescription;
-    private JComboBox<Building.BuildingType> cbType;
-    private JButton btnAdd, btnUpdate, btnDelete, btnClear, btnRefresh;
-    private int selectedBuildingId = -1;
+public class BuildingManagementPanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
+    // ========== ENCAPSULATION: Semua field PRIVATE ==========
+    private BuildingDAO buildingDAO;              // ← PRIVATE: DAO
+    private JTable buildingTable;                 // ← PRIVATE: UI
+    private DefaultTableModel tableModel;         // ← PRIVATE: Data model
+    private JTextField tfName, tfLat, tfLng, tfDescription;  // ← PRIVATE
+    private JComboBox<Building.BuildingType> cbType;         // ← PRIVATE
+    private JButton btnAdd, btnUpdate, btnDelete, btnClear, btnRefresh;  // ← PRIVATE
+    private int selectedBuildingId = -1;          // ← PRIVATE: State
     
     public BuildingManagementPanel() {
         buildingDAO = new BuildingDAO();
@@ -40,10 +52,11 @@ public class BuildingManagementPanel extends JPanel {
         
         // Table
         String[] columns = {"ID", "Nama Gedung", "Tipe", "Deskripsi"};
+        // ========== POLYMORPHISM: Override method ==========
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override
+            @Override  // ← POLYMORPHISM: Override isCellEditable()
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false;  // Semua cell read-only
             }
         };
         buildingTable = new JTable(tableModel);

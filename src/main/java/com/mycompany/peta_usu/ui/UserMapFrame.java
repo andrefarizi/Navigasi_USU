@@ -19,18 +19,30 @@ import java.util.stream.Collectors;
  * UserMapFrame - Map view untuk user (non-admin)
  * Menampilkan peta USU dengan markers dan building info
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field buildingDAO, allBuildings, searchField PRIVATE
+ * 2. INHERITANCE: Extends JFrame (parent: javax.swing.JFrame)
+ *    Mewarisi method dari JFrame:
+ *    • setTitle(), setSize(), setDefaultCloseOperation()
+ *    • setLocationRelativeTo(), setVisible(), add(), dispose()
+ *    - Implements DocumentListener (parent: javax.swing.event.DocumentListener)
+ *      Method yang harus diimplement: insertUpdate(), removeUpdate(), changedUpdate()
+ * 3. POLYMORPHISM: Override insertUpdate/removeUpdate untuk search
+ * 4. ABSTRACTION: Method loadBuildings() sembunyikan DAO query + UI update
+ * 
  * @author PETA_USU Team
  */
-public class UserMapFrame extends JFrame {
+public class UserMapFrame extends JFrame {  // ← INHERITANCE dari javax.swing.JFrame
     
-    private BuildingDAO buildingDAO;
-    private List<Building> allBuildings;
+    // ========== ENCAPSULATION: Field PRIVATE ==========
+    private BuildingDAO buildingDAO;        // ← PRIVATE: Database access
+    private List<Building> allBuildings;    // ← PRIVATE: Data cache
     
-    private JEditorPane mapDisplay;
-    private JTextField searchField;
-    private JComboBox<String> buildingTypeFilter;
-    private JList<String> buildingList;
-    private DefaultListModel<String> listModel;
+    private JEditorPane mapDisplay;         // ← PRIVATE: UI component
+    private JTextField searchField;         // ← PRIVATE: Search input
+    private JComboBox<String> buildingTypeFilter;  // ← PRIVATE: Filter dropdown
+    private JList<String> buildingList;     // ← PRIVATE: List widget
+    private DefaultListModel<String> listModel;    // ← PRIVATE: List data
     
     public UserMapFrame() {
         this.buildingDAO = new BuildingDAO();

@@ -11,6 +11,12 @@ import javax.swing.*;
  * User langsung ke MapFrame (no login)
  * Admin bisa akses via LoginFrame terpisah
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Method showWelcomeScreen() PRIVATE (hide UI logic)
+ * 2. INHERITANCE: Anonymous JPanel extends JPanel + override paintComponent
+ * 3. POLYMORPHISM: Override paintComponent() untuk gradient background
+ * 4. ABSTRACTION: Method main() sembunyikan detail SwingUtilities.invokeLater
+ * 
  * @author PETA_USU Team
  */
 public class PETA_USU {
@@ -42,8 +48,9 @@ public class PETA_USU {
         welcomeFrame.setResizable(false);
         
         // Main panel with gradient effect
+        // ========== POLYMORPHISM: Anonymous inner class + Override ==========
         JPanel panel = new JPanel() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override paintComponent untuk gradient
             protected void paintComponent(java.awt.Graphics g) {
                 super.paintComponent(g);
                 java.awt.Graphics2D g2d = (java.awt.Graphics2D) g;

@@ -21,16 +21,30 @@ import org.jxmapviewer.viewer.*;
 /**
  * RoadClosurePanel - Panel untuk admin manage road closures
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field closureDAO, mapViewer, allRoads PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • setLayout() - set layout manager
+ *    • add() - tambah component
+ *    • setBackground() - set background color
+ *    • setBorder() - set border
+ *    • revalidate(), repaint() - refresh UI
+ *    - Implements Painter<JXMapViewer> untuk custom map rendering
+ * 3. POLYMORPHISM: Override paint() untuk custom road rendering
+ * 4. ABSTRACTION: Method decodePolyline() sembunyikan algoritma Google
+ * 
  * @author PETA_USU Team
  */
-public class RoadClosurePanel extends JPanel {
+public class RoadClosurePanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
     
-    private RoadClosureDAO closureDAO;
-    private RoadDAO roadDAO;
-    private int currentUserId;
+    // ========== ENCAPSULATION: Field PRIVATE ==========
+    private RoadClosureDAO closureDAO;  // ← PRIVATE: Database access
+    private RoadDAO roadDAO;            // ← PRIVATE: Database access
+    private int currentUserId;          // ← PRIVATE: Session user ID
     
-    private JTable closuresTable;
-    private DefaultTableModel tableModel;
+    private JTable closuresTable;       // ← PRIVATE: UI table
+    private DefaultTableModel tableModel;  // ← PRIVATE: Table data
     private JButton btnAddClosure;
     private JButton btnEditClosure;
     private JButton btnDeleteClosure;
@@ -88,9 +102,10 @@ public class RoadClosurePanel extends JPanel {
         panel.setBorder(BorderFactory.createTitledBorder("Peta Jalan Tertutup"));
         
         // Create map viewer with Google Maps
+        // ========== POLYMORPHISM: Anonymous TileFactoryInfo ==========
         TileFactoryInfo info = new TileFactoryInfo(0, 17, 17, 256, true, true,
                 "http://mt0.google.com/vt/lyrs=m", "x", "y", "z") {
-            @Override
+            @Override  // ← POLYMORPHISM: Override getTileUrl untuk Google Maps
             public String getTileUrl(int x, int y, int zoom) {
                 zoom = this.getTotalMapZoom() - zoom;
                 return String.format("https://mt0.google.com/vt/lyrs=m&x=%d&y=%d&z=%d", x, y, zoom);
@@ -122,8 +137,9 @@ public class RoadClosurePanel extends JPanel {
     }
     
     private Painter<JXMapViewer> createRoadPainter() {
+        // ========== POLYMORPHISM: Anonymous Painter<JXMapViewer> ==========
         return new Painter<JXMapViewer>() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override paint untuk custom road rendering
             public void paint(Graphics2D g, JXMapViewer map, int width, int height) {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 

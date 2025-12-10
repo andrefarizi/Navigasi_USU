@@ -7,11 +7,20 @@ import java.lang.ref.WeakReference;
 /**
  * Utility untuk notifikasi refresh MapFrame setelah CRUD operations
  * Memberitahu user untuk refresh Google Maps setelah perubahan data
+ * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field activeMapFrameRef PRIVATE STATIC
+ * 2. INHERITANCE: None (utility class, tidak butuh inheritance)
+ * 3. POLYMORPHISM: Method overloading notifyDataChanged() berbagai entity
+ * 4. ABSTRACTION: Method notifyDataChanged() sembunyikan WeakReference logic
+ * 
+ * @author PETA_USU Team
  */
 public class MapRefreshUtil {
     
-    // Weak reference to active MapFrame to avoid memory leaks
-    private static WeakReference<MapFrame> activeMapFrameRef = null;
+    // ========== ENCAPSULATION: Field PRIVATE STATIC ==========
+    // WeakReference untuk avoid memory leaks
+    private static WeakReference<MapFrame> activeMapFrameRef = null;  // ← PRIVATE STATIC
     
     /**
      * Register active MapFrame for auto-refresh
@@ -31,6 +40,8 @@ public class MapRefreshUtil {
     
     /**
      * Notifikasi bahwa data telah berubah dan Maps perlu di-refresh
+     * 
+     * === ABSTRACTION: Sembunyikan WeakReference, null check, auto-refresh logic ===
      */
     public static void notifyDataChanged(String entityName) {
         // Auto-refresh active MapFrame if available

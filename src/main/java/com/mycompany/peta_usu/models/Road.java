@@ -88,6 +88,8 @@ public class Road {
         this.endLng = endLng;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Field PRIVATE + Public methods = Encapsulation
     // Getters and Setters
     public int getRoadId() { return roadId; }
     public void setRoadId(int roadId) { this.roadId = roadId; }

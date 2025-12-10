@@ -90,6 +90,8 @@ public class Room {
         this.roomType = RoomType.CLASSROOM;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Access control via public methods
     // Getters and Setters
     public int getRoomId() {
         return roomId;

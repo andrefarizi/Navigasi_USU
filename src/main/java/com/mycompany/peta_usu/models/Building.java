@@ -88,6 +88,8 @@ public class Building {
         this.isActive = true;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Kontrol akses ke field PRIVATE lewat method PUBLIC
     // Getters and Setters
     public int getBuildingId() {
         return buildingId;

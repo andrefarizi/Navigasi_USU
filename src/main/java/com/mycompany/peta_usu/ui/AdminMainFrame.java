@@ -7,12 +7,27 @@ import java.awt.*;
  * AdminMainFrame - Main window untuk admin management
  * Menggabungkan AdminMapPanel dan RoadClosurePanel
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field adminUserId, tabbedPane PRIVATE
+ * 2. INHERITANCE: Extends JFrame (parent: javax.swing.JFrame)
+ *    Mewarisi method dari JFrame:
+ *    • setTitle() - set window title
+ *    • setSize() - set window size
+ *    • setDefaultCloseOperation() - set close behavior
+ *    • setLocationRelativeTo() - center window
+ *    • setVisible() - show/hide window
+ *    • add() - add component
+ *    • dispose() - close window
+ * 3. POLYMORPHISM: Override createIcon() untuk multi-purpose icon
+ * 4. ABSTRACTION: Method createHeaderPanel() sembunyikan UI creation
+ * 
  * @author PETA_USU Team
  */
-public class AdminMainFrame extends JFrame {
+public class AdminMainFrame extends JFrame {  // ← INHERITANCE dari javax.swing.JFrame
     
-    private int adminUserId;
-    private JTabbedPane tabbedPane;
+    // ========== ENCAPSULATION: Field PRIVATE ==========
+    private int adminUserId;        // ← PRIVATE: Session admin user
+    private JTabbedPane tabbedPane; // ← PRIVATE: Tab container
     
     public AdminMainFrame(int userId) {
         this.adminUserId = userId;

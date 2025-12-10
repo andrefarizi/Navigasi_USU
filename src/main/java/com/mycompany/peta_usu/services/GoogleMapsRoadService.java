@@ -23,12 +23,21 @@ import java.util.logging.Logger;
  * - Get polyline yang mengikuti jalan sebenarnya (bukan garis lurus)
  * - Snap coordinates to nearest roads
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field API_KEY PRIVATE STATIC FINAL (secret)
+ * 2. INHERITANCE: None (service class, tidak butuh inheritance)
+ * 3. POLYMORPHISM: None (service class, tidak butuh polymorphism)
+ * 4. ABSTRACTION: Method getRoadInfo() sembunyikan HTTP request + JSON parsing
+ * 
+ * INNER CLASS: RoadInfo class untuk encapsulate road data
+ * 
  * @author PETA_USU Team
  */
 public class GoogleMapsRoadService {
     
-    private static final Logger logger = Logger.getLogger(GoogleMapsRoadService.class.getName());
-    private static final String API_KEY = "AIzaSyBy-ugy58EBTMwG2TqtBVlPhR8oF3LeMhA";
+    // ========== ENCAPSULATION: Constants PRIVATE STATIC FINAL ==========
+    private static final Logger logger = Logger.getLogger(GoogleMapsRoadService.class.getName());  // ← PRIVATE
+    private static final String API_KEY = "AIzaSyBy-ugy58EBTMwG2TqtBVlPhR8oF3LeMhA";  // ← PRIVATE (secret API key)
     
     /**
      * Road information dari Google Maps

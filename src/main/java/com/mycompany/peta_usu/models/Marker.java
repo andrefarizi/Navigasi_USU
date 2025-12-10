@@ -59,6 +59,8 @@ public class Marker {
         this.isActive = true;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Field PRIVATE hanya bisa diakses lewat method PUBLIC ini
     // Getters and Setters
     public int getMarkerId() {
         return markerId;

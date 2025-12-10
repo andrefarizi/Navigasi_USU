@@ -12,15 +12,31 @@ import java.util.List;
  * BuildingInfoDialog - Dialog untuk tampilkan info building
  * Untuk user melihat detail gedung dan ruangan
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field building, buildingDAO, roomDAO PRIVATE
+ * 2. INHERITANCE: Extends JDialog (parent: javax.swing.JDialog)
+ *    Mewarisi method dari JDialog:
+ *    • setModal() - set dialog blocking behavior
+ *    • setTitle() - set dialog title
+ *    • setSize() - set dialog size
+ *    • setLocationRelativeTo() - center dialog
+ *    • dispose() - close dialog
+ *    • add() - add component
+ * 3. POLYMORPHISM: Constructor overloading (by ID vs by object)
+ * 4. ABSTRACTION: Method createRoomsPanel() sembunyikan table creation
+ * 
  * @author PETA_USU Team
  */
-public class BuildingInfoDialog extends JDialog {
+public class BuildingInfoDialog extends JDialog {  // ← INHERITANCE dari javax.swing.JDialog
     
-    private Building building;
-    private BuildingDAO buildingDAO;
-    private RoomDAO roomDAO;
+    // ========== ENCAPSULATION: Field PRIVATE ==========
+    private Building building;          // ← PRIVATE: Data object
+    private BuildingDAO buildingDAO;    // ← PRIVATE: Database access
+    private RoomDAO roomDAO;            // ← PRIVATE: Database access            // ← PRIVATE: Database access
     
-    public BuildingInfoDialog(Frame parent, int buildingId) {
+    // ========== POLYMORPHISM: Constructor Overloading ==========
+    // Constructor 1: Terima building ID
+    public BuildingInfoDialog(Frame parent, int buildingId) {  // ← POLYMORPHISM
         super(parent, "Building Information", true);
         
         this.buildingDAO = new BuildingDAO();
@@ -35,7 +51,8 @@ public class BuildingInfoDialog extends JDialog {
         setLocationRelativeTo(parent);
     }
     
-    public BuildingInfoDialog(Frame parent, Building building) {
+    // Constructor 2: Terima building object langsung
+    public BuildingInfoDialog(Frame parent, Building building) {  // ← POLYMORPHISM
         super(parent, "Building Information", true);
         
         this.roomDAO = new RoomDAO();

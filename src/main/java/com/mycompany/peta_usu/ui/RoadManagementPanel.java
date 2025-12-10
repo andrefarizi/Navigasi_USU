@@ -11,16 +11,26 @@ import java.util.List;
 
 /**
  * Panel CRUD untuk Roads
+ * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field roadDAO, table, textfields PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • setLayout(), add(), setBackground(), setBorder()
+ *    • revalidate(), repaint() untuk refresh UI
+ * 3. POLYMORPHISM: Override isCellEditable() untuk read-only table
+ * 4. ABSTRACTION: Method loadRoads() sembunyikan DAO query detail
  */
-public class RoadManagementPanel extends JPanel {
-    private RoadDAO roadDAO;
-    private JTable roadTable;
-    private DefaultTableModel tableModel;
-    private JTextField tfName, tfStartLat, tfStartLng, tfEndLat, tfEndLng, tfDistance, tfDescription;
-    private JComboBox<Road.RoadType> cbType;
-    private JCheckBox chkOneWay;
-    private JButton btnAdd, btnUpdate, btnDelete, btnClear, btnRefresh;
-    private int selectedRoadId = -1;
+public class RoadManagementPanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
+    // ========== ENCAPSULATION: Semua field PRIVATE ==========
+    private RoadDAO roadDAO;              // ← PRIVATE: Database access
+    private JTable roadTable;             // ← PRIVATE: UI table
+    private DefaultTableModel tableModel; // ← PRIVATE: Table data
+    private JTextField tfName, tfStartLat, tfStartLng, tfEndLat, tfEndLng, tfDistance, tfDescription;  // ← PRIVATE
+    private JComboBox<Road.RoadType> cbType;  // ← PRIVATE: Dropdown
+    private JCheckBox chkOneWay;          // ← PRIVATE: Checkbox
+    private JButton btnAdd, btnUpdate, btnDelete, btnClear, btnRefresh;  // ← PRIVATE
+    private int selectedRoadId = -1;      // ← PRIVATE: State
     
     public RoadManagementPanel() {
         roadDAO = new RoadDAO();
@@ -40,10 +50,11 @@ public class RoadManagementPanel extends JPanel {
         
         // Table
         String[] columns = {"ID", "Nama Jalan", "Tipe", "Satu Arah", "Jarak (m)", "Deskripsi"};
+        // ========== POLYMORPHISM: Override isCellEditable() ==========
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk read-only cells
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false;  // Semua cell tidak bisa diedit langsung
             }
         };
         roadTable = new JTable(tableModel);

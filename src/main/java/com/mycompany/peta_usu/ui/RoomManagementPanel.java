@@ -13,18 +13,30 @@ import java.util.List;
 
 /**
  * Panel CRUD untuk Rooms
+ * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field roomDAO, buildingDAO, textfields PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • setLayout() - set layout manager
+ *    • add() - tambah component
+ *    • setBackground() - set background color
+ *    • revalidate(), repaint() - refresh UI
+ * 3. POLYMORPHISM: Override isCellEditable() + toString() di Building
+ * 4. ABSTRACTION: Method loadRooms() sembunyikan JOIN query complexity
  */
-public class RoomManagementPanel extends JPanel {
-    private RoomDAO roomDAO;
-    private BuildingDAO buildingDAO;
-    private JTable roomTable;
-    private DefaultTableModel tableModel;
-    private JTextField tfRoomCode, tfRoomName, tfFloor, tfCapacity, tfDescription;
-    private JComboBox<Building> cbBuilding;
-    private JComboBox<Room.RoomType> cbRoomType;
-    private JCheckBox chkAvailable;
-    private JButton btnAdd, btnUpdate, btnDelete, btnClear, btnRefresh;
-    private int selectedRoomId = -1;
+public class RoomManagementPanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
+    // ========== ENCAPSULATION: Semua field PRIVATE ==========
+    private RoomDAO roomDAO;              // ← PRIVATE: Database access
+    private BuildingDAO buildingDAO;      // ← PRIVATE: Database access
+    private JTable roomTable;             // ← PRIVATE: UI table
+    private DefaultTableModel tableModel; // ← PRIVATE: Table data model
+    private JTextField tfRoomCode, tfRoomName, tfFloor, tfCapacity, tfDescription;  // ← PRIVATE
+    private JComboBox<Building> cbBuilding;       // ← PRIVATE: Dropdown gedung
+    private JComboBox<Room.RoomType> cbRoomType;  // ← PRIVATE: Dropdown tipe
+    private JCheckBox chkAvailable;       // ← PRIVATE: Checkbox status
+    private JButton btnAdd, btnUpdate, btnDelete, btnClear, btnRefresh;  // ← PRIVATE
+    private int selectedRoomId = -1;      // ← PRIVATE: Selected state
     
     public RoomManagementPanel() {
         roomDAO = new RoomDAO();
@@ -46,10 +58,11 @@ public class RoomManagementPanel extends JPanel {
         
         // Table
         String[] columns = {"ID", "Gedung", "Kode", "Nama Ruangan", "Lantai", "Tipe", "Kapasitas", "Status"};
+        // ========== POLYMORPHISM: Anonymous class + Override ==========
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk custom behavior
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false;  // Read-only table (tidak bisa diedit)
             }
         };
         roomTable = new JTable(tableModel);

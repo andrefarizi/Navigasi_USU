@@ -25,16 +25,32 @@ import javax.imageio.ImageIO;
  * AdminMapPanel - Panel untuk admin manage markers
  * Fitur: upload icon, drag-drop, save ke database
  * 
+ * === 4 PILAR OOP ===
+ * 1. ENCAPSULATION: Field markerDAO, buildingDAO, waypoints PRIVATE
+ * 2. INHERITANCE: Extends JPanel (parent: javax.swing.JPanel)
+ *    Mewarisi method dari JPanel:
+ *    • add() - tambah component
+ *    • setLayout() - set layout manager
+ *    • setBackground() - set warna background
+ *    • repaint() - redraw component
+ *    • revalidate() - refresh layout
+ *    • setBorder() - set border
+ *    - Inner class DraggableWaypoint extends DefaultWaypoint (parent: org.jxmapviewer.viewer.DefaultWaypoint)
+ *      Mewarisi: getPosition(), equals(), hashCode()
+ * 3. POLYMORPHISM: Override paintComponent() untuk custom marker rendering
+ * 4. ABSTRACTION: Method loadMarkers() sembunyikan detail DAO + UI update
+ * 
  * @author PETA_USU Team
  */
-public class AdminMapPanel extends JPanel {
+public class AdminMapPanel extends JPanel {  // ← INHERITANCE dari javax.swing.JPanel
     
-    private MarkerDAO markerDAO;
-    private BuildingDAO buildingDAO;
-    private int currentUserId;
+    // ========== ENCAPSULATION: Semua field PRIVATE ==========
+    private MarkerDAO markerDAO;        // ← PRIVATE: Database access
+    private BuildingDAO buildingDAO;    // ← PRIVATE: Database access
+    private int currentUserId;          // ← PRIVATE: Session data
     
-    // UI Components
-    private JTable markersTable;
+    // UI Components (PRIVATE untuk kontrol penuh)
+    private JTable markersTable;        // ← PRIVATE: Table component
     private DefaultTableModel tableModel;
     private JButton btnEditMarker;
     private JButton btnDeleteMarker;
@@ -126,9 +142,10 @@ public class AdminMapPanel extends JPanel {
         mapViewer = new JXMapViewer();
         
         // Setup Google Maps tiles
+        // ========== POLYMORPHISM: Anonymous TileFactoryInfo + Override ==========
         TileFactoryInfo info = new TileFactoryInfo(0, 17, 17, 256, true, true,
                 "http://mt0.google.com/vt/lyrs=m", "x", "y", "z") {
-            @Override
+            @Override  // ← POLYMORPHISM: Override getTileUrl untuk Google Maps tiles
             public String getTileUrl(int x, int y, int zoom) {
                 zoom = this.getTotalMapZoom() - zoom;
                 return String.format("https://mt0.google.com/vt/lyrs=m&x=%d&y=%d&z=%d", x, y, zoom);
@@ -148,8 +165,9 @@ public class AdminMapPanel extends JPanel {
         MouseAdapter panAdapter = new PanMouseInputListener(mapViewer);
         
         // Add drag-drop mouse listeners
+        // ========== POLYMORPHISM: Anonymous MouseAdapter ==========
         mapViewer.addMouseListener(new MouseAdapter() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override mousePressed untuk drag marker
             public void mousePressed(MouseEvent e) {
                 // Check if clicking on a marker
                 Point clickPoint = e.getPoint();
@@ -198,7 +216,7 @@ public class AdminMapPanel extends JPanel {
                 }
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk handle drag release
             public void mouseReleased(MouseEvent e) {
                 if (selectedMarker != null) {
                     // Save new position to database
@@ -211,14 +229,15 @@ public class AdminMapPanel extends JPanel {
                 }
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override mouseClicked
             public void mouseClicked(MouseEvent e) {
                 panAdapter.mouseClicked(e);
             }
         });
         
+        // ========== POLYMORPHISM: Anonymous MouseMotionAdapter ==========
         mapViewer.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override mouseDragged untuk real-time drag
             public void mouseDragged(MouseEvent e) {
                 if (selectedMarker != null && dragStart != null) {
                     // Update marker position
@@ -313,8 +332,9 @@ public class AdminMapPanel extends JPanel {
         
         // Table
         String[] columns = {"ID", "Name", "Type", "Latitude", "Longitude", "Active"};
+        // ========== POLYMORPHISM: Anonymous DefaultTableModel ==========
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override
+            @Override  // ← POLYMORPHISM: Override untuk read-only table
             public boolean isCellEditable(int row, int column) {
                 return false;
             }

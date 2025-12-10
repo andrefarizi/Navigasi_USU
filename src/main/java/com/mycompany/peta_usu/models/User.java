@@ -89,6 +89,9 @@ public class User {
         this.role = UserRole.USER;
     }
     
+    // ========== ENCAPSULATION: Getters and Setters ==========
+    // Akses ke field PRIVATE harus lewat method PUBLIC ini
+    // Bisa tambah validasi di setter (contoh: password min 8 karakter)
     // Getters and Setters
     public int getUserId() {
         return userId;
