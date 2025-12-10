@@ -44,6 +44,8 @@ import org.jxmapviewer.viewer.DefaultWaypoint;
 import org.jxmapviewer.viewer.GeoPosition;
 import org.jxmapviewer.viewer.TileFactoryInfo;
 import org.jxmapviewer.viewer.WaypointPainter;
+import org.jxmapviewer.painter.CompoundPainter;
+import org.jxmapviewer.painter.CompoundPainter;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.util.ArrayList;
@@ -62,8 +64,10 @@ import java.util.ArrayList;
  *    - User hanya interaksi lewat UI, tidak bisa manipulasi waypoint langsung
  * 
  * 2. INHERITANCE (Pewarisan):
- *    - Class ini EXTENDS JFrame (mewarisi dari Swing)
- *    - Inner class CustomWaypoint EXTENDS DefaultWaypoint
+ *    - Class ini EXTENDS JFrame (parent: javax.swing.JFrame)
+ *      Mewarisi method: setTitle(), setSize(), setDefaultCloseOperation(), setLocationRelativeTo(), setVisible(), add(), dispose()
+ *    - Inner class CustomWaypoint EXTENDS DefaultWaypoint (parent: org.jxmapviewer.viewer.DefaultWaypoint)
+ *      Mewarisi method: getPosition(), equals(), hashCode()
  *    - Dapat semua fitur DefaultWaypoint + tambahan: iconPath, buildingId, type
  *    - Tujuan: Reuse code dari JFrame dan DefaultWaypoint
  * 
@@ -95,7 +99,26 @@ public class MapFrame extends javax.swing.JFrame {
     // User position marker
     private GeoPosition userPosition;
     private boolean isDraggingUserMarker = false;
+    private org.jxmapviewer.painter.Painter<JXMapViewer> overlayPainter; // Painter untuk overlay abu-abu
     private static final String USER_MARKER_NAME = "📍 Posisi Saya";
+    
+    // === BOUNDING BOX USU - Area PERSIS sesuai garis hitam (koordinat sudut) ===
+    // Sudut Kiri Atas (Barat Laut): Jl. Dr. Mansyur x Jl. Tri Dharma (Pintu 4)
+    // Sudut Kanan Atas (Timur Laut): Jl. Dr. Mansyur x Jl. Universitas (Pintu 1)
+    // Sudut Kanan Bawah (Tenggara): Belakang kampus, sisi timur (Gelanggang/Pancasila)
+    // Sudut Kiri Bawah (Barat Daya): Jl. Tri Dharma selatan (Fakultas Pertanian/Farmasi)
+    // DIPERBESAR sedikit agar kotak hitam lebih lebar
+    private static final double USU_NORTH = 3.5685;  // Batas utara (diperlebar ke utara)
+    private static final double USU_SOUTH = 3.5550;  // Batas selatan (diperlebar ke selatan)
+    private static final double USU_WEST = 98.6520;  // Batas barat (diperlebar ke barat)
+    private static final double USU_EAST = 98.6615;  // Batas timur (diperlebar ke timur)
+    private static final GeoPosition USU_CENTER = new GeoPosition((3.5685 + 3.5550) / 2, (98.6520 + 98.6615) / 2); // Center area
+    
+    // Zoom level FIX - TIDAK perlu zoom manual lagi!
+    // CATATAN: Di JXMapViewer, angka KECIL = zoom IN (dekat), angka BESAR = zoom OUT (jauh)
+    private static final int MIN_ZOOM = 1;   // Zoom in limit (detail maksimal)
+    private static final int MAX_ZOOM = 3;   // Zoom out limit (jangan terlalu jauh)
+    private static final int DEFAULT_ZOOM = 1; // Zoom 1 = MAKSIMAL zoom in, hanya area USU sesuai koordinat sudut
     
     // Pan listener reference to preserve it when removing other listeners
     private PanMouseInputListener panListener;
@@ -156,8 +179,9 @@ public class MapFrame extends javax.swing.JFrame {
         
         showLoadingDialog();
         
+        // ========== POLYMORPHISM: Anonymous SwingWorker + Override ==========
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override doInBackground untuk async loading
             protected Void doInBackground() throws Exception {
                 initComponents();
                 setupMapUI();
@@ -169,7 +193,7 @@ public class MapFrame extends javax.swing.JFrame {
                 return null;
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override done untuk UI update di EDT
             protected void done() {
                 hideLoadingDialog();
                 updateWaypoints(); // Render icons after loading complete
@@ -352,8 +376,9 @@ public class MapFrame extends javax.swing.JFrame {
         setContentPane(mainPanel);
         
         // Add ComponentListener for responsive layout
+        // ========== POLYMORPHISM: Anonymous ComponentAdapter ==========
         addComponentListener(new ComponentAdapter() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override componentResized untuk responsive
             public void componentResized(ComponentEvent e) {
                 updateLayoutForScreenSize();
             }
@@ -447,9 +472,13 @@ public class MapFrame extends javax.swing.JFrame {
                 });
             }
 
-            @Override public void insertUpdate(DocumentEvent e) { doFilter(); }
-            @Override public void removeUpdate(DocumentEvent e) { doFilter(); }
-            @Override public void changedUpdate(DocumentEvent e) {}
+            // ========== POLYMORPHISM: DocumentListener overrides untuk search ==========
+            @Override  // ← POLYMORPHISM: Override insertUpdate untuk text change
+            public void insertUpdate(DocumentEvent e) { doFilter(); }
+            @Override  // ← POLYMORPHISM: Override removeUpdate untuk text delete
+            public void removeUpdate(DocumentEvent e) { doFilter(); }
+            @Override  // ← POLYMORPHISM: Override changedUpdate (tidak dipakai)
+            public void changedUpdate(DocumentEvent e) {}
         });
 
         combo.addActionListener(e -> {
@@ -473,8 +502,10 @@ public class MapFrame extends javax.swing.JFrame {
             }
         });
 
+        // ========== POLYMORPHISM: FocusAdapter override ==========
         editor.addFocusListener(new java.awt.event.FocusAdapter() {
-            @Override public void focusGained(java.awt.event.FocusEvent e) {
+            @Override  // ← POLYMORPHISM: Override focusGained untuk show popup
+            public void focusGained(java.awt.event.FocusEvent e) {
                 SwingUtilities.invokeLater(() -> {
                     if (!updating.get()) {
                         editor.selectAll(); 
@@ -484,8 +515,9 @@ public class MapFrame extends javax.swing.JFrame {
             }
         });
 
+        // ========== POLYMORPHISM: KeyAdapter override ==========
         editor.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
+            @Override  // ← POLYMORPHISM: Override keyPressed untuk Enter/Esc
             public void keyPressed(java.awt.event.KeyEvent e) {
                 if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
                     if (combo.isPopupVisible() && model.getSize() > 0) {
@@ -560,9 +592,12 @@ public class MapFrame extends javax.swing.JFrame {
         cariRuteButton.setBorder(BorderFactory.createEmptyBorder(5, 15, 5, 15));
         cariRuteButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
+        // ========== POLYMORPHISM: MouseAdapter override untuk hover effect ==========
         cariRuteButton.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { cariRuteButton.setBackground(LIGHT_GREEN); }
-            @Override public void mouseExited(MouseEvent e) { cariRuteButton.setBackground(PRIMARY_GREEN); }
+            @Override  // ← POLYMORPHISM: Override mouseEntered untuk hover color
+            public void mouseEntered(MouseEvent e) { cariRuteButton.setBackground(LIGHT_GREEN); }
+            @Override  // ← POLYMORPHISM: Override mouseExited untuk normal color
+            public void mouseExited(MouseEvent e) { cariRuteButton.setBackground(PRIMARY_GREEN); }
         });
 
         cariRuteButton.addActionListener(e -> {
@@ -599,9 +634,10 @@ public class MapFrame extends javax.swing.JFrame {
 
         mapViewer = new JXMapViewer();
 
+        // ========== POLYMORPHISM: Anonymous TileFactoryInfo ==========
         TileFactoryInfo info = new TileFactoryInfo(0, 17, 17, 256, true, true,
                 "http://mt0.google.com/vt/lyrs=m", "x", "y", "z") {
-            @Override
+            @Override  // ← POLYMORPHISM: Override getTileUrl untuk Google Maps
             public String getTileUrl(int x, int y, int zoom) {
                 zoom = this.getTotalMapZoom() - zoom;
                 return String.format("https://mt0.google.com/vt/lyrs=m&x=%d&y=%d&z=%d", x, y, zoom);
@@ -612,27 +648,115 @@ public class MapFrame extends javax.swing.JFrame {
         tileFactory.setThreadPoolSize(8);
         mapViewer.setTileFactory(tileFactory);
 
-        GeoPosition usu = new GeoPosition(3.5688, 98.6618);
-        mapViewer.setZoom(3);
-        mapViewer.setAddressLocation(usu);
+        // === SET DEFAULT VIEW: Center USU dengan zoom optimal ===
+        mapViewer.setZoom(DEFAULT_ZOOM);  // Zoom 16 = optimal untuk lihat seluruh area USU
+        mapViewer.setAddressLocation(USU_CENTER);
+        
+        // === SET USER POSITION DEFAULT: Di center USU (Universitas Sumatera Utara) ===
+        userPosition = USU_CENTER;  // Default posisi user di tengah kampus USU
+        
+        // === RESTRICT ZOOM LEVEL: Agar peta tetap fokus di area USU ===
+        mapViewer.addPropertyChangeListener("zoom", evt -> {
+            int currentZoom = mapViewer.getZoom();
+            if (currentZoom < MIN_ZOOM) {
+                mapViewer.setZoom(MIN_ZOOM);  // Prevent zoom in terlalu dekat
+            } else if (currentZoom > MAX_ZOOM) {
+                mapViewer.setZoom(MAX_ZOOM);  // Prevent zoom out terlalu jauh
+            }
+        });
+        
+        // === RESTRICT PANNING: Agar peta tidak keluar dari bounding box USU ===
+        mapViewer.addPropertyChangeListener("center", evt -> {
+            GeoPosition center = mapViewer.getCenterPosition();
+            double lat = center.getLatitude();
+            double lng = center.getLongitude();
+            
+            // Clamp koordinat agar tetap dalam bounding box USU
+            boolean needsAdjustment = false;
+            if (lat > USU_NORTH) { lat = USU_NORTH; needsAdjustment = true; }
+            if (lat < USU_SOUTH) { lat = USU_SOUTH; needsAdjustment = true; }
+            if (lng < USU_WEST) { lng = USU_WEST; needsAdjustment = true; }
+            if (lng > USU_EAST) { lng = USU_EAST; needsAdjustment = true; }
+            
+            if (needsAdjustment) {
+                mapViewer.setCenterPosition(new GeoPosition(lat, lng));
+            }
+        });
+
+        // === TAMBAHKAN OVERLAY ABU-ABU untuk area di luar bounding box USU ===
+        // Overlay SELALU muncul (tidak hilang setelah loading)
+        // Simpan ke field agar bisa digabungkan dengan waypoint painter
+        overlayPainter = new org.jxmapviewer.painter.Painter<JXMapViewer>() {
+            @Override
+            public void paint(Graphics2D g, JXMapViewer map, int w, int h) {
+                // Konversi koordinat geo ke pixel
+                java.awt.geom.Point2D topLeft = map.getTileFactory().geoToPixel(
+                    new GeoPosition(USU_NORTH, USU_WEST), map.getZoom()
+                );
+                java.awt.geom.Point2D bottomRight = map.getTileFactory().geoToPixel(
+                    new GeoPosition(USU_SOUTH, USU_EAST), map.getZoom()
+                );
+                
+                // Get viewport position
+                java.awt.Rectangle viewportBounds = map.getViewportBounds();
+                
+                // Convert to screen coordinates
+                int x1 = (int)(topLeft.getX() - viewportBounds.x);
+                int y1 = (int)(topLeft.getY() - viewportBounds.y);
+                int x2 = (int)(bottomRight.getX() - viewportBounds.x);
+                int y2 = (int)(bottomRight.getY() - viewportBounds.y);
+                
+                // Gambar overlay abu-abu LEBIH PEKAT (opacity 90%)
+                g.setColor(new Color(100, 100, 100, 230)); // Abu-abu gelap 90% opacity (lebih pekat)
+                
+                // Area atas (di atas garis hitam)
+                if (y1 > 0) {
+                    g.fillRect(0, 0, w, y1);
+                }
+                
+                // Area bawah (di bawah garis hitam)
+                if (y2 < h) {
+                    g.fillRect(0, y2, w, h - y2);
+                }
+                
+                // Area kiri (di kiri garis hitam)
+                if (x1 > 0) {
+                    g.fillRect(0, Math.max(0, y1), x1, Math.min(h, y2) - Math.max(0, y1));
+                }
+                
+                // Area kanan (di kanan garis hitam)
+                if (x2 < w) {
+                    g.fillRect(x2, Math.max(0, y1), w - x2, Math.min(h, y2) - Math.max(0, y1));
+                }
+                
+                // Gambar border hitam LEBIH TEBAL untuk area USU
+                g.setColor(Color.BLACK);
+                g.setStroke(new java.awt.BasicStroke(4)); // Lebih tebal dari 3 menjadi 4
+                g.drawRect(x1, y1, x2 - x1, y2 - y1);
+            }
+        };
+        
+        // Set overlay painter pertama kali (akan digabungkan dengan waypoint painter nanti)
+        mapViewer.setOverlayPainter(overlayPainter);
 
         // Custom pan listener that respects isDraggingUserMarker flag
+        // ========== POLYMORPHISM: Override PanMouseInputListener methods ==========
         panListener = new PanMouseInputListener(mapViewer) {
-            @Override
+            @Override  // ← POLYMORPHISM: Override mousePressed dengan kondisi
             public void mousePressed(MouseEvent e) {
                 if (!isDraggingUserMarker) {
                     super.mousePressed(e);
                 }
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override mouseReleased dengan kondisi
             public void mouseReleased(MouseEvent e) {
                 if (!isDraggingUserMarker) {
                     super.mouseReleased(e);
                 }
             }
             
-            @Override
+            @Override  // ← POLYMORPHISM: Override mouseDragged dengan kondisi
             public void mouseDragged(MouseEvent e) {
                 if (!isDraggingUserMarker) {
                     super.mouseDragged(e);
@@ -719,12 +843,13 @@ public class MapFrame extends javax.swing.JFrame {
         btnRefresh.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnRefresh.setToolTipText("Reset titik awal dan tujuan, hapus rute dari peta");
         
+        // ========== POLYMORPHISM: Override MouseAdapter untuk hover effect btnRefresh ==========
         btnRefresh.addMouseListener(new MouseAdapter() {
-            @Override 
+            @Override  // ← POLYMORPHISM: Override mouseEntered() untuk mengubah warna button saat kursor masuk
             public void mouseEntered(MouseEvent e) { 
                 btnRefresh.setBackground(new Color(102, 187, 106)); 
             }
-            @Override 
+            @Override  // ← POLYMORPHISM: Override mouseExited() untuk mengembalikan warna button saat kursor keluar
             public void mouseExited(MouseEvent e) { 
                 btnRefresh.setBackground(new Color(76, 175, 80)); 
             }
@@ -1468,7 +1593,8 @@ public class MapFrame extends javax.swing.JFrame {
     
     private void updateWaypoints() {
         WaypointPainter<CustomWaypoint> waypointPainter = new WaypointPainter<CustomWaypoint>() {
-            @Override
+            // ========== POLYMORPHISM: Override WaypointPainter untuk custom rendering ==========
+            @Override  // ← POLYMORPHISM: Override doPaint() untuk menggambar custom markers, routes, dan user position di map
             protected void doPaint(Graphics2D g, JXMapViewer map, int width, int height) {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
@@ -1753,8 +1879,13 @@ public class MapFrame extends javax.swing.JFrame {
 
         waypointPainter.setWaypoints(waypoints);
 
-        // Set painter tanpa area polygon
-        mapViewer.setOverlayPainter(waypointPainter);
+        // === GABUNGKAN overlay abu-abu dengan waypoint painter menggunakan CompoundPainter ===
+        List<org.jxmapviewer.painter.Painter<JXMapViewer>> painters = new ArrayList<>();
+        painters.add(overlayPainter);  // Overlay abu-abu di layer pertama (background)
+        painters.add(waypointPainter);  // Waypoint di layer kedua (foreground)
+        
+        CompoundPainter<JXMapViewer> compoundPainter = new CompoundPainter<>(painters);
+        mapViewer.setOverlayPainter(compoundPainter);
         
         // Force repaint to show route immediately
         mapViewer.repaint();
@@ -1780,7 +1911,8 @@ public class MapFrame extends javax.swing.JFrame {
         // Add custom listener for user marker dragging
         // IMPORTANT: Don't use e.consume() - just set flag and let pan listener check it
         MouseAdapter markerMouseListener = new MouseAdapter() {
-            @Override
+            // ========== POLYMORPHISM: Override MouseAdapter untuk detect user marker drag ==========
+            @Override  // ← POLYMORPHISM: Override mousePressed() untuk mendeteksi awal drag pada user marker
             public void mousePressed(MouseEvent e) {
                 // Check if clicking on user marker
                 if (userPosition != null) {
@@ -1796,7 +1928,8 @@ public class MapFrame extends javax.swing.JFrame {
                 }
             }
             
-            @Override
+            // ========== POLYMORPHISM: Override MouseAdapter untuk end user marker drag ==========
+            @Override  // ← POLYMORPHISM: Override mouseReleased() untuk menyelesaikan drag user marker dan update UI
             public void mouseReleased(MouseEvent e) {
                 if (isDraggingUserMarker) {
                     isDraggingUserMarker = false;
@@ -1809,7 +1942,8 @@ public class MapFrame extends javax.swing.JFrame {
         };
         
         java.awt.event.MouseMotionAdapter markerMotionListener = new java.awt.event.MouseMotionAdapter() {
-            @Override
+            // ========== POLYMORPHISM: Override MouseMotionAdapter untuk drag user marker ==========
+            @Override  // ← POLYMORPHISM: Override mouseDragged() untuk update posisi user marker secara real-time saat di-drag
             public void mouseDragged(MouseEvent e) {
                 if (isDraggingUserMarker) {
                     // Convert screen coordinates to geo position
@@ -1837,7 +1971,8 @@ public class MapFrame extends javax.swing.JFrame {
         
         // Add click listener for showing waypoint info (separate from drag)
         mapViewer.addMouseListener(new MouseAdapter() {
-            @Override
+            // ========== POLYMORPHISM: Override MouseAdapter untuk show waypoint info ==========
+            @Override  // ← POLYMORPHISM: Override mouseClicked() untuk menampilkan info waypoint saat diklik
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 1 && !isDraggingUserMarker) {
                     Point point = e.getPoint();
@@ -1875,7 +2010,8 @@ public class MapFrame extends javax.swing.JFrame {
         
         // Add mouse motion listener for dragging
         mapViewer.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
-            @Override
+            // ========== POLYMORPHISM: Override MouseMotionAdapter untuk continuous drag update ==========
+            @Override  // ← POLYMORPHISM: Override mouseDragged() untuk update smooth user marker position saat drag dengan logging
             public void mouseDragged(MouseEvent e) {
                 if (isDraggingUserMarker) {
                     // Convert screen coordinates to geo position
